@@ -106,8 +106,10 @@ func setWindowStyle(hwnd uintptr, style int32) {
 type Monitor struct {
 	number    int
 	isPrimary bool
-	width     int
-	height    int
+	width     int32
+	height    int32
+	left      int32
+	top       int32
 }
 
 func (m Monitor) String() string {
@@ -126,11 +128,15 @@ func getMonitors() []Monitor {
 		info.CbSize = uint32(unsafe.Sizeof(info))
 		if win.GetMonitorInfo(hMonitor, &info) {
 			index++
+			// info.RcMonitor.Left = info.RcMonitor.Left / win.GetDeviceCaps(hdcMonitor, win.LOGPIXELSX) * win.GetDeviceCaps(hdcMonitor, win.LOGPIXELSX)
+			fmt.Println("Monitor ", index, "\n", info.DwFlags&win.MONITORINFOF_PRIMARY != 0, "\n", info.RcMonitor, "\n", info.RcWork)
 			monitors = append(monitors, Monitor{
 				number:    index,
 				isPrimary: info.DwFlags&win.MONITORINFOF_PRIMARY != 0,
-				width:     int(info.RcMonitor.Right - info.RcMonitor.Left),
-				height:    int(info.RcMonitor.Bottom - info.RcMonitor.Top),
+				width:     info.RcMonitor.Right - info.RcMonitor.Left,
+				height:    info.RcMonitor.Bottom - info.RcMonitor.Top,
+				left:      info.RcMonitor.Left,
+				top:       info.RcMonitor.Top,
 			})
 		}
 		return 1

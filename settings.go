@@ -88,13 +88,13 @@ func loadSettings() (*Settings, error) {
 	}
 
 	var settings *Settings
-	if err := json.Unmarshal(bytes, settings); err != nil {
+	if err := json.Unmarshal(bytes, &settings); err != nil {
 		return NewSettings(), err
 	}
 	return settings, nil
 }
 
-func (settings *Settings) save() error {
+func (settings *Settings) Save() error {
 	bytes, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err
@@ -103,7 +103,16 @@ func (settings *Settings) save() error {
 }
 
 func backUpSettingsFile() error {
-	backupPath := settingsPath + ".bak"
+	baseBackupPath := settingsPath + ".bak"
+	backupPath := baseBackupPath
+	i := 1
+	for {
+		if _, err := os.Stat(backupPath); os.IsNotExist(err) {
+			break
+		}
+		backupPath = fmt.Sprintf("%s.%d", baseBackupPath, i)
+		i++
+	}
 	if _, err := os.Stat(settingsPath); err == nil {
 		if err := os.Rename(settingsPath, backupPath); err != nil {
 			return fmt.Errorf("failed to back up settings: %w", err)
@@ -112,6 +121,10 @@ func backUpSettingsFile() error {
 	return nil
 }
 
-func addToSettings(settings *Settings, app AppSetting) {
+func (settings *Settings) AddApp(app AppSetting) {
+	settings.Apps = append(settings.Apps, app)
+}
 
+func (settings *Settings) RemoveApp(appSettingIdx int) {
+	settings.Apps = append(settings.Apps[:appSettingIdx], settings.Apps[appSettingIdx+1:]...)
 }

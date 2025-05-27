@@ -33,6 +33,8 @@ func (w Window) String() string {
 	return fmt.Sprintf("%s - %s", w.title, w.exePath)
 }
 
+var monitors []Monitor
+
 var chWindowList = make(chan []Window, 1) // Channel to send window list updates
 func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 	// Check if the window is visible; skip if not
@@ -59,6 +61,22 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 
 	return 1 // continue enumeration
 }
+
+func matchWindow(win Window, appSetting AppSetting) bool {
+	switch appSetting.MatchType {
+	case MatchWindowTitle:
+		return win.title == appSetting.WindowName
+	case MatchExePath:
+		return win.exePath == appSetting.ExePath
+	case MatchBoth:
+		return win.title == appSetting.WindowName && win.exePath == appSetting.ExePath
+	case MatchEither:
+		return win.title == appSetting.WindowName || win.exePath == appSetting.ExePath
+	default:
+		return false
+	}
+}
+
 func scanWindows(settings *Settings) {
 	for {
 		tempList := make([]Window, 0, 32) // Temporary list to store window titles
@@ -68,11 +86,13 @@ func scanWindows(settings *Settings) {
 		// fmt.Println("sending channel")
 		chWindowList <- tempList // Update global window list
 		// fmt.Println("done sending channel")
-		for _, appSetting := range settings.Apps {
+		for appSettingIdx := range settings.Apps {
+			appSetting := &settings.Apps[appSettingIdx]
+			// fmt.Println("Checking app setting:", appSetting)
 			for _, win := range tempList {
-				if win.exePath == appSetting.ExePath {
-					// fmt.Println("Found matching window:", win)
-					makeBorderless(win, appSetting.OffsetX, appSetting.OffsetY, appSetting.Width, appSetting.Height)
+				if matchWindow(win, *appSetting) {
+					makeBorderless(win, *appSetting)
+					break
 				}
 			}
 		}
@@ -84,11 +104,17 @@ func scanWindows(settings *Settings) {
 func main() {
 	settings, err := loadSettings()
 	if err != nil {
-		print("Error loading settings:", err)
+		fmt.Println("Error loading settings:", err)
 		backUpSettingsFile()
 	}
-	settings.save()
+	settings.Save()
 	fmt.Println(settings)
+	monitors = getMonitors()
+	for _, mon := range monitors {
+		fmt.Printf("Monitor %d\n", mon.number)
+		fmt.Printf("  Resolution: %dx%d\n", mon.width, mon.height)
+		fmt.Printf("  Position: (%d, %d)\n", mon.left, mon.top)
+	}
 	go scanWindows(settings)
 	buildApp(settings)
 }

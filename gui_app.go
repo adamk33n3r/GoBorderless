@@ -29,6 +29,8 @@ var (
 	widthText             *widget.Entry
 	heightText            *widget.Entry
 	startWithWindowsCheck *widget.Check
+	makeBorderlessBtn     *widget.Button
+	removeBorderlessBtn   *widget.Button
 )
 
 func FirstError(args ...error) error {
@@ -54,14 +56,15 @@ var updatedWindows = make([]Window, 0) // Temporary list to store window titles
 var updatedWindowsMutex sync.Mutex
 var windowObs = rx.FromChannel(chWindowList)
 var selectedMonitor Monitor
-var monitors []Monitor
 
 func buildApp(settings *Settings) {
 	myApp := app.New()
 	myWindow := myApp.NewWindow("NoMoreBorderGo")
-	monitors = getMonitors()
 	fmt.Println(monitors)
-	selectedMonitor = monitors[0]
+	primaryMonitorIdx := slices.IndexFunc(monitors, func(m Monitor) bool {
+		return m.isPrimary
+	})
+	selectedMonitor = monitors[primaryMonitorIdx]
 
 	resLabel := widget.NewLabel(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
 
@@ -78,14 +81,20 @@ func buildApp(settings *Settings) {
 	// Dropdowns
 	applicationSelect = ui.NewSelect(updatedWindows, func(selected Window) {
 		fmt.Println("Selected Application:", selected)
+		// if selected != nil {
+		makeBorderlessBtn.Enable()
+		removeBorderlessBtn.Enable()
+		// }
 	})
 	applicationSelect.PlaceHolder = "Select Application"
+	fmt.Println("FIRST VALUE", applicationSelect.Select.Selected)
 
 	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
 		resLabel.SetText(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
+		selectedMonitor = selected
 	})
 	displaySelect.PlaceHolder = "Select Display"
-	displaySelect.SetSelectedIndex(0)
+	displaySelect.SetSelectedIndex(primaryMonitorIdx)
 
 	matchType = widget.NewRadioGroup(matchTypes, func(selected string) {
 		switch selected {
@@ -97,6 +106,7 @@ func buildApp(settings *Settings) {
 	})
 	matchType.SetSelected(matchTypes[0])
 	matchType.Horizontal = true
+	matchType.Required = true
 
 	// Textboxes with labels
 	xOffsetLabel := widget.NewLabel("X Offset:")
@@ -139,13 +149,13 @@ func buildApp(settings *Settings) {
 
 	regName := "NoMoreBorderGo"
 	regKey := "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-	exePath, _ := os.Executable()
+	appExePath, _ := os.Executable()
 	// Checkbox
 	startWithWindowsCheck = widget.NewCheck("Start with Windows", func(checked bool) {
 		openKey, _ := registry.OpenKey(registry.CURRENT_USER, regKey, registry.ALL_ACCESS)
 		defer openKey.Close()
 		if checked {
-			openKey.SetStringValue(regName, exePath)
+			openKey.SetStringValue(regName, appExePath)
 		} else {
 			openKey.DeleteValue(regName)
 		}
@@ -156,7 +166,7 @@ func buildApp(settings *Settings) {
 	openKey.Close()
 
 	// Buttons
-	makeBorderless := widget.NewButton("Apply", func() {
+	makeBorderlessBtn = widget.NewButton("Apply", func() {
 		fmt.Println("Button 1 clicked")
 		matchTypeSelected := GetMatchTypeFromString(matchType.Selected)
 		x, errX := strconv.Atoi(xOffsetText.Text)
@@ -173,51 +183,56 @@ func buildApp(settings *Settings) {
 		copyOfList := make([]Window, len(updatedWindows))
 		copy(copyOfList, updatedWindows)
 		updatedWindowsMutex.Unlock()
-		exeSplitIdx := strings.LastIndex(applicationSelect.Selected, " - ")
-		title := applicationSelect.Selected[:exeSplitIdx]
-		exePath := applicationSelect.Selected[exeSplitIdx+3:] // +3 to skip " - "
-		var filterFunc func(Window) bool
-		switch matchTypeSelected {
-		case MatchWindowTitle:
-			fmt.Println("Match by Window Title:", title)
-			filterFunc = func(w Window) bool { return w.title == title }
-		case MatchExePath:
-			fmt.Println("Match by Exe Path:", exePath)
-			filterFunc = func(w Window) bool { return w.exePath == exePath }
-		case MatchBoth:
-			fmt.Println("Match by Both:(", title, exePath, ")")
-			filterFunc = func(w Window) bool { return w.title == title && w.exePath == exePath }
-		case MatchEither:
-			fmt.Println("Match by Either:(", title, exePath, ")")
-			filterFunc = func(w Window) bool { return w.title == title || w.exePath == exePath }
-		default:
-			fmt.Println("Unknown match type")
-		}
-		idx := slices.IndexFunc(copyOfList, filterFunc)
-		if idx == -1 {
-			dialog.NewError(fmt.Errorf("No matching window found"), myWindow).Show()
-			return
-		}
-		makeBorderless(copyOfList[idx], int32(x), int32(y), int32(w), int32(h))
-		addToSettings(settings, AppSetting{
-			WindowName: title,
-			ExePath:    exePath,
-			PreHeight:  int32(h),
-			PreWidth:   int32(w),
+		selectedApp := applicationSelect.Selected
+		originalRect := getWindowRect(selectedApp.hwnd)
+		appSetting := AppSetting{
+			WindowName: selectedApp.title,
+			ExePath:    selectedApp.exePath,
+			PreWidth:   int32(originalRect.Right - originalRect.Left),
+			PreHeight:  int32(originalRect.Bottom - originalRect.Top),
 			OffsetX:    int32(x),
 			OffsetY:    int32(y),
+			Width:      int32(w),
+			Height:     int32(h),
 			Monitor:    int32(selectedMonitor.number),
-		})
+			MatchType:  matchTypeSelected,
+		}
+		// idx := slices.IndexFunc(copyOfList, func(win Window) bool {
+		// 	return matchWindow(win, appSetting)
+		// })
+		// if idx == -1 {
+		// 	dialog.NewError(fmt.Errorf("No matching window found"), myWindow).Show()
+		// 	return
+		// }
+		// makeBorderless(copyOfList[idx], int32(x), int32(y), int32(w), int32(h))
+		settings.AddApp(appSetting)
+		settings.Save()
 	})
-	removeBorderless := widget.NewButton("Remove", func() {
+	makeBorderlessBtn.Disable()
+	removeBorderlessBtn = widget.NewButton("Remove", func() {
 		fmt.Println("Button 2 clicked")
 		updatedWindowsMutex.Lock()
 		copyOfList := make([]Window, len(updatedWindows))
 		copy(copyOfList, updatedWindows)
 		updatedWindowsMutex.Unlock()
-		idx := slices.IndexFunc(copyOfList, func(w Window) bool { return w.title == applicationSelect.Selected })
-		restoreWindow(copyOfList[idx])
+		appSettingIdx := slices.IndexFunc(settings.Apps, func(appSetting AppSetting) bool {
+			return appSetting.WindowName == applicationSelect.Selected.title && appSetting.ExePath == applicationSelect.Selected.exePath
+		})
+		if appSettingIdx == -1 {
+			dialog.NewError(fmt.Errorf("No matching application setting found"), myWindow).Show()
+			return
+		}
+		appSetting := settings.Apps[appSettingIdx]
+		idx := slices.IndexFunc(copyOfList, func(win Window) bool { return matchWindow(win, appSetting) })
+		if idx == -1 {
+			dialog.NewError(fmt.Errorf("No matching window found"), myWindow).Show()
+			return
+		}
+		restoreWindow(copyOfList[idx], appSetting)
+		settings.RemoveApp(appSettingIdx)
+		settings.Save()
 	})
+	removeBorderlessBtn.Disable()
 
 	// Layout
 	content := container.NewVBox(
@@ -227,21 +242,33 @@ func buildApp(settings *Settings) {
 		matchType,
 		textGrid,
 		startWithWindowsCheck,
-		container.NewHBox(makeBorderless, removeBorderless),
+		container.NewHBox(makeBorderlessBtn, removeBorderlessBtn),
 	)
 
 	windowObs.Subscribe(func(windows []Window) {
+		// for _, win := range windows {
+		// 	if win.title == "NoMoreBorderGo" {
+		// 		rect := getWindowRect(win.hwnd)
+		// 		fmt.Println("NoMoreBorderGo window rect:", rect)
+		// 	}
+		// }
 		fyne.Do(func() {
 			slices.SortFunc(windows, func(a Window, b Window) int {
 				return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
 			})
 			windowCountLabel.SetText(fmt.Sprintf("Window Count: %d", len(windows)))
 			applicationSelect.SetOptions(windows)
+
+			if applicationSelect.Selected != nil && slices.Index(windows, *applicationSelect.Selected) == -1 {
+				fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
+				applicationSelect.ClearSelected()
+				makeBorderlessBtn.Disable()
+				removeBorderlessBtn.Disable()
+			}
 		})
 	})
 
 	windowObs.Subscribe(func(windows []Window) {
-		// fmt.Println("Window List Updated:", len(windows))
 		updatedWindowsMutex.Lock()
 		updatedWindows = windows
 		updatedWindowsMutex.Unlock()

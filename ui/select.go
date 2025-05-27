@@ -13,7 +13,8 @@ type SelectOption interface {
 
 type Select[T SelectOption] struct {
 	widget.Select
-	Options []T
+	Options  []T
+	Selected *T
 }
 
 func (s *Select[T]) SetOptions(options []T) {
@@ -22,6 +23,18 @@ func (s *Select[T]) SetOptions(options []T) {
 }
 func (s *Select[T]) SetSelected(option T) {
 	s.Select.SetSelected(option.String())
+	s.Selected = &option
+}
+func (s *Select[T]) SetSelectedIndex(index int) {
+	if index < 0 || index >= len(s.Options) {
+		return
+	}
+	s.Select.SetSelected(s.Options[index].String())
+	s.Selected = &s.Options[index]
+}
+func (s *Select[T]) ClearSelected() {
+	s.Select.ClearSelected()
+	s.Selected = nil
 }
 func (s *Select[T]) optionsAsStrings() []string {
 	stringOptions := make([]string, len(s.Options))
@@ -43,6 +56,7 @@ func NewSelect[T SelectOption](options []T, changed func(T)) *Select[T] {
 		index := slices.Index(s.Select.Options, item)
 		if index != -1 {
 			changed(s.Options[index])
+			s.Selected = &s.Options[index]
 		}
 	}
 	s.ExtendBaseWidget(s)
