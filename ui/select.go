@@ -52,7 +52,7 @@ func NewSelect[T SelectOption](options []T, changed func(T)) *Select[T] {
 		Options: options,
 	}
 	s.Select.Options = s.optionsAsStrings()
-	s.Select.OnChanged = func(item string) {
+	s.OnChanged = func(item string) {
 		index := slices.Index(s.Select.Options, item)
 		if index != -1 {
 			changed(s.Options[index])

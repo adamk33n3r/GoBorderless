@@ -2,25 +2,17 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 	"unsafe"
+
+	"slices"
+
+	"github.com/lxn/win"
 )
 
-// Load required Windows DLLs
-var (
-// modUser32   = windows.NewLazySystemDLL("user32.dll")
-// modKernel32 = windows.NewLazySystemDLL("kernel32.dll")
-// modPsapi    = windows.NewLazySystemDLL("psapi.dll")
-
-// Procedure pointers for Windows API functions
-// procEnumWindows              = modUser32.NewProc("EnumWindows")
-// procGetWindowTextW           = modUser32.NewProc("GetWindowTextW")
-// procGetWindowTextLengthW     = modUser32.NewProc("GetWindowTextLengthW")
-// procIsWindowVisible          = modUser32.NewProc("IsWindowVisible")
-// procGetWindowThreadProcessId = modUser32.NewProc("GetWindowThreadProcessId")
-// procGetModuleFileNameExW     = modPsapi.NewProc("GetModuleFileNameExW")
-// procOpenProcess              = modKernel32.NewProc("OpenProcess")
-// procCloseHandle              = modKernel32.NewProc("CloseHandle")
+const (
+	APP_NAME = "GoBorderless"
 )
 
 type Window struct {
@@ -30,12 +22,54 @@ type Window struct {
 }
 
 func (w Window) String() string {
-	return fmt.Sprintf("%s - %s", w.title, w.exePath)
+	return fmt.Sprintf("%s | %s", w.title, w.exePath)
 }
 
 var monitors []Monitor
 
 var chWindowList = make(chan []Window, 1) // Channel to send window list updates
+
+var ALWAYS_HIDDEN_PROCESSESS = []string{
+	// Skip self
+	strings.ToLower(APP_NAME),
+	// Skip other borderless apps
+	"borderlessgaming",
+	"nomoreborder",
+
+	// Inspired by BorderlessGaming
+	// Skip Windows core system processes
+	"csrss",
+	"smss",
+	"lsass",
+	"wininit",
+	"svchost",
+	"services",
+	"winlogon",
+	"dwm",
+	"explorer",
+	"taskmgr",
+	"mmc",
+	"rundll32",
+	"vcredist_x86",
+	"vcredist_x64",
+	"msiexec",
+	// Skip common video streaming software
+	"xsplit",
+	"obs64",
+	// Skip common web browsers
+	"iexplore",
+	"firefox",
+	"chrome",
+	"safari",
+	"msedge",
+	// Skip launchers/misc.
+	"iw4 console",
+	"steam",
+	"steamwebhelper",
+	"origin",
+	"uplay",
+}
+
 func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 	// Check if the window is visible; skip if not
 	if !isVisible(hwnd) {
@@ -47,14 +81,42 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 		return 1 // continue enumeration
 	}
 
-	exePath, err := getProcessExecutable(getProcessID(hwnd))
-	if err != nil {
-		exePath = ""
+	// Filter out windows that don't have normal borders cause they're probably not "real" windows
+	style := getWindowStyle(hwnd)
+	if !(style&win.WS_CAPTION > 0 &&
+		((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0)) {
+		return 1
 	}
 
-	restoredPtr := (*[]Window)(unsafe.Pointer(lparam))
+	// Filter out windows with no size
+	rect := getWindowRect(hwnd)
+	if rect.Left == rect.Right && rect.Top == rect.Bottom {
+		return 1
+	}
 
-	*restoredPtr = append(*restoredPtr, Window{hwnd: hwnd, title: title, exePath: exePath})
+	// exePath, err := getProcessExecutable(getProcessID(hwnd))
+	// if err != nil {
+	// 	return 1
+	// }
+
+	var pid uint32
+	win.GetWindowThreadProcessId(win.HWND(hwnd), &pid)
+	pname, err := getProcessName(pid)
+	if err != nil {
+		return 1
+	}
+
+	// Filter out some stuff you probably never want to see
+	if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(pname)[:len(pname)-4]) {
+		return 1
+	}
+	if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(title)) {
+		return 1
+	}
+
+	restoredPtr := (*[]Window)(unsafe.Pointer(lparam)) //nolint:govet
+
+	*restoredPtr = append(*restoredPtr, Window{hwnd: hwnd, title: title, exePath: pname})
 
 	// Print window handle, title, and executable path
 	// fmt.Printf("HWND: 0x%x\nTitle: %s\nExe Path: %s\n\n", hwnd, title, exePath)

@@ -1,14 +1,15 @@
 package main
 
 import (
-	"NoMoreBorderGo/rx"
-	"NoMoreBorderGo/ui"
 	"fmt"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/adamk33n3r/GoBorderless/rx"
+	"github.com/adamk33n3r/GoBorderless/ui"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -59,7 +60,7 @@ var selectedMonitor Monitor
 
 func buildApp(settings *Settings) {
 	myApp := app.New()
-	myWindow := myApp.NewWindow("NoMoreBorderGo")
+	myWindow := myApp.NewWindow(APP_NAME)
 	fmt.Println(monitors)
 	primaryMonitorIdx := slices.IndexFunc(monitors, func(m Monitor) bool {
 		return m.isPrimary
@@ -233,6 +234,35 @@ func buildApp(settings *Settings) {
 		settings.Save()
 	})
 	removeBorderlessBtn.Disable()
+
+	// testStep := 0
+	// testBtn := widget.NewButton("TEST", func() {
+	// 	updatedWindowsMutex.Lock()
+	// 	copyOfList := make([]Window, len(updatedWindows))
+	// 	copy(copyOfList, updatedWindows)
+	// 	updatedWindowsMutex.Unlock()
+	// 	for _, win := range copyOfList {
+	// 		if win.title == "Calculator" {
+	// 			switch testStep {
+	// 			case 0:
+	// 				makeBorderless(win, AppSetting{
+	// 					Monitor: 1,
+	// 					OffsetX: 0,
+	// 					OffsetY: 0,
+	// 					Width:   400,
+	// 					Height:  1200,
+	// 				})
+	// 				testStep++
+	// 			case 1:
+	// 				restoreWindow(win, AppSetting{
+	// 					PreWidth:  0,
+	// 					PreHeight: 0,
+	// 				})
+	// 				testStep = 0
+	// 			}
+	// 		}
+	// 	}
+	// })
 
 	// Layout
 	content := container.NewVBox(

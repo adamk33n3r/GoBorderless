@@ -1,4 +1,4 @@
-module NoMoreBorderGo
+module github.com/adamk33n3r/GoBorderless
 
 go 1.24.3
 

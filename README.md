@@ -1,4 +1,4 @@
-# NoMoreBorderGo
+# GoBorderless
 Currently a clone of [NoMoreBorder](https://github.com/invcble/NoMoreBorder) I used to learn Go, but I plan on differentiating this app into its own thing.
 
 ## Development

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	appFolder    = filepath.Join(getDocumentsFolder(), "NoMoreBorderGo")
+	appFolder    = filepath.Join(getDocumentsFolder(), APP_NAME)
 	settingsPath = filepath.Join(appFolder, "settings.json")
 )
 

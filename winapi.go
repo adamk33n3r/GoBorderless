@@ -11,37 +11,25 @@ import (
 )
 
 const (
-	maxPath          = 260    // Maximum path length for Windows file paths
-	processQueryInfo = 0x0400 // Process access right for querying information
-	processVMRead    = 0x0010 // Process access right for reading memory
+	maxPath = 260 // Maximum path length for Windows file paths
 )
 
 var (
-	user32   = windows.NewLazySystemDLL("user32.dll")
-	shell32  = windows.NewLazySystemDLL("shell32.dll")
-	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
-	psapi    = windows.NewLazySystemDLL("psapi.dll")
+	user32  = windows.NewLazySystemDLL("user32.dll")
+	shell32 = windows.NewLazySystemDLL("shell32.dll")
 
-	procEnumWindows              = user32.NewProc("EnumWindows")
-	procGetWindowTextW           = user32.NewProc("GetWindowTextW")
-	procGetWindowTextLengthW     = user32.NewProc("GetWindowTextLengthW")
-	procIsWindowVisible          = user32.NewProc("IsWindowVisible")
-	procGetWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	procGetModuleFileNameExW     = psapi.NewProc("GetModuleFileNameExW")
-	procOpenProcess              = kernel32.NewProc("OpenProcess")
-	procCloseHandle              = kernel32.NewProc("CloseHandle")
-	procEnumDisplayMonitors      = user32.NewProc("EnumDisplayMonitors")
-	procGetKnownFolderPath       = shell32.NewProc("SHGetKnownFolderPath")
+	procGetWindowTextW       = user32.NewProc("GetWindowTextW")
+	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
+	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
+	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
-	// Callback function for EnumWindows, called for each top-level window handle (hwnd)
-	procEnumWindows.Call(windows.NewCallback(callback), uintptr(extra))
+	windows.EnumWindows(windows.NewCallback(callback), extra)
 }
 
 func isVisible(hwnd uintptr) bool {
-	isVisible, _, _ := procIsWindowVisible.Call(hwnd)
-	return isVisible != 0
+	return win.IsWindowVisible(win.HWND(hwnd))
 }
 
 func getWindowTitle(hwnd uintptr) string {
@@ -49,27 +37,35 @@ func getWindowTitle(hwnd uintptr) string {
 	if textLen == 0 {
 		return ""
 	}
-	// fmt.Println("textLen", textLen)
 
 	textBuf := make([]uint16, textLen+1)
 	procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&textBuf[0])), uintptr(len(textBuf)))
 	return windows.UTF16ToString(textBuf)
 }
 
-func getProcessID(hwnd uintptr) uint32 {
-	var pid uint32
-	procGetWindowThreadProcessId.Call(hwnd, uintptr(unsafe.Pointer(&pid)))
-	return pid
+func getProcessName(pid uint32) (string, error) {
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION|windows.PROCESS_VM_READ, false, pid)
+	if err != nil {
+		return "", err
+	}
+	defer windows.CloseHandle(handle) // Ensure handle is closed after use
+	processNameBuf := make([]uint16, maxPath)
+	err = windows.GetModuleBaseName(handle, 0, &processNameBuf[0], maxPath)
+	if err != nil {
+		return "", err
+	}
+	processName := windows.UTF16ToString(processNameBuf)
+	return processName, nil
 }
 
 func getProcessExecutable(pid uint32) (string, error) {
-	hProc, _, err := procOpenProcess.Call(processQueryInfo|processVMRead, 0, uintptr(pid))
-	if hProc == 0 {
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION|windows.PROCESS_VM_READ, false, pid)
+	if handle == 0 {
 		return "", err
 	}
-	defer procCloseHandle.Call(hProc) // Ensure handle is closed after use
+	defer windows.CloseHandle(handle) // Ensure handle is closed after use
 	exeBuf := make([]uint16, maxPath)
-	procGetModuleFileNameExW.Call(hProc, 0, uintptr(unsafe.Pointer(&exeBuf[0])), uintptr(maxPath))
+	windows.GetModuleFileNameEx(handle, 0, &exeBuf[0], maxPath)
 	exePath := windows.UTF16ToString(exeBuf)
 	return exePath, nil
 }
@@ -90,12 +86,6 @@ func getWindowRect(hwnd uintptr) win.RECT {
 
 func getWindowStyle(hwnd uintptr) int32 {
 	return win.GetWindowLong(win.HWND(hwnd), win.GWL_STYLE)
-	// index := GWL_STYLE
-	// style, _, err := procGetWindowLong.Call(hwnd, uintptr(index))
-	// if style == 0 {
-	// 	return 0, err
-	// }
-	// return uint32(style), nil
 }
 
 func setWindowStyle(hwnd uintptr, style int32) {
@@ -151,6 +141,6 @@ func getDocumentsFolder() string {
 	if hr != 0 {
 		return ""
 	}
-	defer windows.CoTaskMemFree(unsafe.Pointer(buf))
-	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(buf)))
+	defer windows.CoTaskMemFree(unsafe.Pointer(buf))                //nolint:govet
+	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(buf))) //nolint:govet
 }
