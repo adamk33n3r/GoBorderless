@@ -16,11 +16,12 @@ type AppSettingRow struct {
 	// Focused    bool
 	// Hovered    bool
 
-	Title     *ttwidget.Label
-	AutoApply *widget.Check
-	ApplyBtn  *widget.Button
-	EditBtn   *widget.Button
-	DeleteBtn *widget.Button
+	Title      *ttwidget.Label
+	AutoApply  *widget.Check
+	ApplyBtn   *ttwidget.Button
+	RestoreBtn *ttwidget.Button
+	EditBtn    *ttwidget.Button
+	DeleteBtn  *ttwidget.Button
 
 	// OnTapped        func()
 	// OnDoubleTapped  func()
@@ -120,23 +121,21 @@ func (asr *AppSettingRow) Tapped(*fyne.PointEvent) {
 // }
 
 func NewAppSettingRow() *AppSettingRow {
-	applyBtn := widget.NewButtonWithIcon("Apply", theme.ConfirmIcon(), func() {})
 	label := ttwidget.NewLabel("template")
 	label.SetToolTip("template")
 	row := &AppSettingRow{
-		Title: label,
-		AutoApply: widget.NewCheck("Auto Apply", func(selected bool) {
-			if selected {
-				applyBtn.Disable()
-			} else {
-				applyBtn.Enable()
-			}
-		}),
-		ApplyBtn:  applyBtn,
-		EditBtn:   widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {}),
-		DeleteBtn: widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {}),
+		Title:      label,
+		AutoApply:  widget.NewCheck("Auto Apply", func(checked bool) {}),
+		ApplyBtn:   ttwidget.NewButtonWithIcon("", theme.ContentRedoIcon(), func() {}),
+		RestoreBtn: ttwidget.NewButtonWithIcon("", theme.ContentUndoIcon(), func() {}),
+		EditBtn:    ttwidget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {}),
+		DeleteBtn:  ttwidget.NewButtonWithIcon("", theme.DeleteIcon(), func() {}),
 	}
 	row.Title.Truncation = fyne.TextTruncateEllipsis
+	row.ApplyBtn.SetToolTip("Apply")
+	row.RestoreBtn.SetToolTip("Restore")
+	row.EditBtn.SetToolTip("Edit")
+	row.DeleteBtn.SetToolTip("Delete")
 	row.ExtendBaseWidget(row)
 
 	return row
@@ -154,6 +153,7 @@ func (row *AppSettingRow) CreateRenderer() fyne.WidgetRenderer {
 		container.NewHBox(
 			row.AutoApply,
 			row.ApplyBtn,
+			row.RestoreBtn,
 			row.EditBtn,
 			row.DeleteBtn,
 		),

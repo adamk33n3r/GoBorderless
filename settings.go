@@ -58,9 +58,12 @@ type AppSetting struct {
 	WindowName string    `json:"windowName"`
 	ExePath    string    `json:"exePath"`
 	MatchType  MatchType `json:"matchType"`
+	AutoApply  bool      `json:"autoApply"`
 	Monitor    int       `json:"monitor"`
-	PreHeight  int32     `json:"preHeight"`
 	PreWidth   int32     `json:"preWidth"`
+	PreHeight  int32     `json:"preHeight"`
+	PreOffsetX int32     `json:"preOffsetX"`
+	PreOffsetY int32     `json:"preOffsetY"`
 	Width      int32     `json:"width"`
 	Height     int32     `json:"height"`
 	OffsetX    int32     `json:"offsetX"`
@@ -140,5 +143,5 @@ func (settings *Settings) AddApp(app AppSetting) {
 }
 
 func (settings *Settings) RemoveApp(appSettingIdx int) {
-	settings.Apps = append(settings.Apps[:appSettingIdx], settings.Apps[appSettingIdx+1:]...)
+	settings.Apps = slices.Delete(settings.Apps, appSettingIdx, appSettingIdx+1)
 }

@@ -88,13 +88,49 @@ func buildApp(settings *Settings) {
 		return ui.NewAppSettingRow()
 	}, func(lii widget.ListItemID, co fyne.CanvasObject) {
 		appSetting := settings.Apps[lii]
-		co.(*ui.AppSettingRow).Title.SetText(appSetting.Display())
-		co.(*ui.AppSettingRow).Title.SetToolTip(appSetting.Display())
-		co.(*ui.AppSettingRow).ApplyBtn.OnTapped = func() {
+		row := co.(*ui.AppSettingRow)
+		row.Title.SetText(appSetting.Display())
+		row.Title.SetToolTip(appSetting.Display())
+		row.AutoApply.SetChecked(appSetting.AutoApply)
+		row.AutoApply.OnChanged = func(checked bool) {
+			appSetting := settings.Apps[lii]
+			if checked {
+				row.ApplyBtn.Disable()
+				row.RestoreBtn.Disable()
+			} else {
+				row.ApplyBtn.Enable()
+				row.RestoreBtn.Enable()
+			}
+			appSetting.AutoApply = checked
+			settings.Apps[lii] = appSetting
+			settings.Save()
+		}
+		row.ApplyBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
 			fmt.Println("clicked apply for:", appSetting.Display())
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			if !isBorderless(*win) {
+				originalRect := getWindowRect(win.hwnd)
+				appSetting.PreWidth = int32(originalRect.Right - originalRect.Left)
+				appSetting.PreHeight = int32(originalRect.Bottom - originalRect.Top)
+				appSetting.PreOffsetX = int32(originalRect.Left)
+				appSetting.PreOffsetY = int32(originalRect.Top)
+				settings.Apps[lii] = appSetting
+				settings.Save()
+			}
+			makeBorderless(*win, appSetting)
 		}
-		co.(*ui.AppSettingRow).EditBtn.OnTapped = func() {
+		row.RestoreBtn.OnTapped = func() {
+			appSetting := settings.Apps[lii]
+			fmt.Println("clicked undo for:", appSetting.Display())
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			restoreWindow(*win, appSetting)
+		}
+		if appSetting.AutoApply {
+			row.ApplyBtn.Disable()
+			row.RestoreBtn.Disable()
+		}
+		row.EditBtn.OnTapped = func() {
 			// Need to fetch again from array to "reset" the values since this update func is only called on occasion
 			appSetting := settings.Apps[lii]
 			launchAppSettingDialog(mainWindow, false, appSetting, func(newSetting *AppSetting) {
@@ -105,7 +141,7 @@ func buildApp(settings *Settings) {
 				}
 			})
 		}
-		co.(*ui.AppSettingRow).DeleteBtn.OnTapped = func() {
+		row.DeleteBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
 			idx := slices.IndexFunc(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
 			if idx == -1 {

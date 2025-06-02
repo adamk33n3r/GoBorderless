@@ -159,12 +159,24 @@ func scanWindows(settings *Settings) {
 		// fmt.Println("sending channel:", len(tempList))
 		chWindowList <- tempList // Update global window list
 		// fmt.Println("done sending channel")
-		for appSettingIdx := range settings.Apps {
-			appSetting := &settings.Apps[appSettingIdx]
+		for appSettingIdx, appSetting := range settings.Apps {
+			// appSetting := &settings.Apps[appSettingIdx]
+			if !appSetting.AutoApply {
+				continue
+			}
 			// fmt.Println("Checking app setting:", appSetting)
 			for _, win := range tempList {
-				if matchWindow(win, *appSetting) {
-					makeBorderless(win, *appSetting)
+				if matchWindow(win, appSetting) {
+					if !isBorderless(win) {
+						originalRect := getWindowRect(win.hwnd)
+						appSetting.PreWidth = int32(originalRect.Right - originalRect.Left)
+						appSetting.PreHeight = int32(originalRect.Bottom - originalRect.Top)
+						appSetting.PreOffsetX = int32(originalRect.Left)
+						appSetting.PreOffsetY = int32(originalRect.Top)
+						settings.Apps[appSettingIdx] = appSetting
+						settings.Save()
+					}
+					makeBorderless(win, appSetting)
 					break
 				}
 			}

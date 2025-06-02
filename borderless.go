@@ -6,6 +6,12 @@ import (
 	"github.com/lxn/win"
 )
 
+func isBorderless(window Window) bool {
+	style := getWindowStyle(window.hwnd)
+	return !(style&win.WS_CAPTION > 0 &&
+		((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0))
+}
+
 func makeBorderless(window Window, appSetting AppSetting) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
 	style := getWindowStyle(window.hwnd)
@@ -20,5 +26,5 @@ func restoreWindow(window Window, appSetting AppSetting) {
 	style := getWindowStyle(window.hwnd)
 	// Restore the border and title bar
 	setWindowStyle(window.hwnd, style|win.WS_OVERLAPPEDWINDOW)
-	setWindowPos(window.hwnd, 0, 0, appSetting.PreWidth, appSetting.PreHeight)
+	setWindowPos(window.hwnd, appSetting.PreOffsetX, appSetting.PreOffsetY, appSetting.PreWidth, appSetting.PreHeight)
 }
