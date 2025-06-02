@@ -25,12 +25,12 @@ jobs:
       # - name: Upload Artifact
       #   uses: actions/upload-artifact@v4
       #   with:
-      #     name: Go Borderless
-      #     path: Go Borderless.exe
+      #     name: GoBorderless
+      #     path: GoBorderless.exe
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          artifacts: "Go Borderless.exe"
+          artifacts: "GoBorderless.exe"
           name: ${{ github.ref_name }}
           generateReleaseNotes: true
