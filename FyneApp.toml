@@ -2,7 +2,7 @@ Website = "https://github.com/adamk33n3r/GoBorderless"
 
 [Details]
   Icon = "icon.png"
-  Name = "Go Boderless"
+  Name = "Go Borderless"
   ID = "com.adamk33n3r.goborderless"
   Version = "1.0.0"
-  Build = 20
+  Build = 22
