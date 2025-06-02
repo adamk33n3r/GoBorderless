@@ -4,11 +4,11 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "tmp\\main.exe"
-  cmd = "go build -o ./tmp/main.exe ."
+  bin = "tmp\\GoBorderless.exe"
+  cmd = "go build -o ./tmp/GoBorderless.exe ."
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
-  exclude_file = []
+  exclude_file = ["fyne_metadata_init.go"]
   exclude_regex = ["_test.go"]
   exclude_unchanged = false
   follow_symlink = false
@@ -25,10 +25,10 @@ tmp_dir = "tmp"
   rerun = false
   rerun_delay = 500
   send_interrupt = false
-  stop_on_error = false
+  stop_on_error = true
 
 [color]
-  app = ""
+  app = "red"
   build = "yellow"
   main = "magenta"
   runner = "green"

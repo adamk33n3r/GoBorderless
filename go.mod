@@ -7,6 +7,8 @@ require (
 	golang.org/x/sys v0.33.0
 )
 
+require github.com/dweymouth/fyne-tooltip v0.3.1 // indirect
+
 require (
 	fyne.io/fyne/v2 v2.6.1
 	fyne.io/systray v1.11.0 // indirect

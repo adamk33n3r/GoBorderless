@@ -1,0 +1,337 @@
+package main
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/adamk33n3r/GoBorderless/rx"
+	"github.com/adamk33n3r/GoBorderless/ui"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
+)
+
+var (
+	applicationSelect *ui.Select[Window]
+	displaySelect     *ui.Select[Monitor]
+	matchType         *widget.RadioGroup
+	xOffsetText       *widget.Entry
+	yOffsetText       *widget.Entry
+	widthText         *widget.Entry
+	heightText        *widget.Entry
+)
+
+func entryTextToInt(s string) int32 {
+	intVal, _ := strconv.Atoi(s)
+	return int32(intVal)
+}
+
+func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.ConfirmDialog {
+	monitorIdx := appSetting.Monitor - 1
+	if isNew {
+		monitorIdx = slices.IndexFunc(monitors, func(m Monitor) bool {
+			return m.isPrimary
+		})
+	}
+	selectedMonitor := monitors[monitorIdx]
+
+	// resLabel := widget.NewLabel(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
+
+	// windowCountLabel = widget.NewLabel(fmt.Sprintf("Window Count: %d", 0))
+
+	// // Center the label
+	// centeredLabel := container.NewHBox(
+	// 	layout.NewSpacer(),
+	// 	resLabel,
+	// 	windowCountLabel,
+	// 	layout.NewSpacer(),
+	// )
+
+	// Dropdowns
+	currentWindowsMutex.Lock()
+	slices.SortFunc(currentWindows, func(a Window, b Window) int {
+		return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
+	})
+	applicationSelect = ui.NewSelect(currentWindows, func(selected Window) {
+		if slices.Index(currentWindows, selected) == -1 {
+			fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
+			applicationSelect.ClearSelected()
+		}
+		fmt.Println("Selected Application:", selected)
+		appSetting.WindowName = selected.title
+		appSetting.ExePath = selected.exePath
+	})
+	currentWindowsMutex.Unlock()
+	applicationSelect.PlaceHolder = "Select Application"
+	fmt.Println("FIRST VALUE", applicationSelect.Select.Selected)
+
+	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
+		// resLabel.SetText(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
+		appSetting.Monitor = selected.number
+	})
+	displaySelect.PlaceHolder = "Select Display"
+	displaySelect.SetSelectedIndex(monitorIdx)
+
+	matchType = widget.NewRadioGroup(matchTypes, func(selected string) {
+		appSetting.MatchType = GetMatchTypeFromString(selected)
+	})
+	if isNew {
+		matchType.SetSelected(matchTypes[0])
+	} else {
+		matchType.SetSelected(appSetting.MatchType.String())
+	}
+	matchType.Horizontal = true
+	matchType.Required = true
+
+	// Textboxes with labels
+	xOffsetLabel := widget.NewLabel("X Offset:")
+	xOffsetText = widget.NewEntry()
+	xOffsetText.Validator = intValidator
+	xOffsetText.OnChanged = func(s string) {
+		appSetting.OffsetX = entryTextToInt(s)
+	}
+	xOffsetText.SetPlaceHolder("0")
+	if isNew {
+		xOffsetText.SetText("0")
+	} else {
+		xOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetX)))
+	}
+
+	yOffsetLabel := widget.NewLabel("Y Offset:")
+	yOffsetText = widget.NewEntry()
+	yOffsetText.Validator = intValidator
+	yOffsetText.OnChanged = func(s string) {
+		appSetting.OffsetY = entryTextToInt(s)
+	}
+	yOffsetText.SetPlaceHolder("0")
+	if isNew {
+		yOffsetText.SetText("0")
+	} else {
+		yOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetY)))
+	}
+
+	widthLabel := widget.NewLabel("Width:")
+	widthText = widget.NewEntry()
+	widthText.Validator = intValidator
+	widthText.OnChanged = func(s string) {
+		appSetting.Width = entryTextToInt(s)
+	}
+	widthText.SetPlaceHolder("1920")
+	if isNew {
+		widthText.SetText(fmt.Sprintf("%d", selectedMonitor.width))
+	} else {
+		widthText.SetText(strconv.Itoa(int(appSetting.Width)))
+	}
+
+	heightLabel := widget.NewLabel("Height:")
+	heightText = widget.NewEntry()
+	heightText.Validator = intValidator
+	heightText.OnChanged = func(s string) {
+		appSetting.Height = entryTextToInt(s)
+	}
+	heightText.SetPlaceHolder("1080")
+	if isNew {
+		heightText.SetText(fmt.Sprintf("%d", selectedMonitor.height))
+	} else {
+		heightText.SetText(strconv.Itoa(int(appSetting.Height)))
+	}
+
+	// 2x2 grid for labeled textboxes
+	textGrid := container.NewGridWithRows(2,
+		container.NewGridWithColumns(2,
+			container.NewVBox(xOffsetLabel, xOffsetText),
+			container.NewVBox(yOffsetLabel, yOffsetText),
+		),
+		container.NewGridWithColumns(2,
+			container.NewVBox(widthLabel, widthText),
+			container.NewVBox(heightLabel, heightText),
+		),
+	)
+
+	// makeBorderlessBtn = widget.NewButton("Apply", func() {
+	// 	fmt.Println("Button 1 clicked")
+	// 	matchTypeSelected := GetMatchTypeFromString(matchType.Selected)
+	// 	x, errX := strconv.Atoi(xOffsetText.Text)
+	// 	y, errY := strconv.Atoi(yOffsetText.Text)
+	// 	w, errW := strconv.Atoi(widthText.Text)
+	// 	h, errH := strconv.Atoi(heightText.Text)
+	// 	if errX != nil || errY != nil || errW != nil || errH != nil {
+	// 		fmt.Println("Invalid input(s)")
+	// 		dialog.NewError(FirstError(errX, errY, errW, errH), window).Show()
+	// 		return
+	// 	}
+	// 	fmt.Println(x, y, w, h)
+	// 	updatedWindowsMutex.Lock()
+	// 	copyOfList := make([]Window, len(updatedWindows))
+	// 	copy(copyOfList, updatedWindows)
+	// 	updatedWindowsMutex.Unlock()
+	// 	selectedApp := applicationSelect.Selected
+	// 	originalRect := getWindowRect(selectedApp.hwnd)
+	// 	appSetting := AppSetting{
+	// 		WindowName: selectedApp.title,
+	// 		ExePath:    selectedApp.exePath,
+	// 		PreWidth:   int32(originalRect.Right - originalRect.Left),
+	// 		PreHeight:  int32(originalRect.Bottom - originalRect.Top),
+	// 		OffsetX:    int32(x),
+	// 		OffsetY:    int32(y),
+	// 		Width:      int32(w),
+	// 		Height:     int32(h),
+	// 		Monitor:    int32(selectedMonitor.number),
+	// 		MatchType:  matchTypeSelected,
+	// 	}
+	// 	// idx := slices.IndexFunc(copyOfList, func(win Window) bool {
+	// 	// 	return matchWindow(win, appSetting)
+	// 	// })
+	// 	// if idx == -1 {
+	// 	// 	dialog.NewError(fmt.Errorf("No matching window found"), window).Show()
+	// 	// 	return
+	// 	// }
+	// 	// makeBorderless(copyOfList[idx], int32(x), int32(y), int32(w), int32(h))
+
+	// 	settings.AddApp(appSetting)
+	// 	settings.Save()
+	// })
+	// makeBorderlessBtn.Disable()
+	// removeBorderlessBtn = widget.NewButton("Remove", func() {
+	// 	fmt.Println("Button 2 clicked")
+	// 	updatedWindowsMutex.Lock()
+	// 	copyOfList := make([]Window, len(updatedWindows))
+	// 	copy(copyOfList, updatedWindows)
+	// 	updatedWindowsMutex.Unlock()
+	// 	appSettingIdx := slices.IndexFunc(settings.Apps, func(appSetting AppSetting) bool {
+	// 		return appSetting.WindowName == applicationSelect.Selected.title && appSetting.ExePath == applicationSelect.Selected.exePath
+	// 	})
+	// 	if appSettingIdx == -1 {
+	// 		dialog.NewError(fmt.Errorf("No matching application setting found"), window).Show()
+	// 		return
+	// 	}
+	// 	appSetting := settings.Apps[appSettingIdx]
+	// 	idx := slices.IndexFunc(copyOfList, func(win Window) bool { return matchWindow(win, appSetting) })
+	// 	if idx == -1 {
+	// 		dialog.NewError(fmt.Errorf("No matching window found"), window).Show()
+	// 		return
+	// 	}
+	// 	restoreWindow(copyOfList[idx], appSetting)
+	// 	settings.RemoveApp(appSettingIdx)
+	// 	settings.Save()
+	// })
+	// removeBorderlessBtn.Disable()
+
+	// testStep := 0
+	var _ = widget.NewButton("TEST", func() {
+		// for _, win := range copyOfList {
+		// 	if win.title == "Calculator" {
+		// 		switch testStep {
+		// 		case 0:
+		// 			makeBorderless(win, AppSetting{
+		// 				Monitor: 1,
+		// 				OffsetX: 0,
+		// 				OffsetY: 0,
+		// 				Width:   400,
+		// 				Height:  1200,
+		// 			})
+		// 			testStep++
+		// 		case 1:
+		// 			restoreWindow(win, AppSetting{
+		// 				PreWidth:  0,
+		// 				PreHeight: 0,
+		// 			})
+		// 			testStep = 0
+		// 		}
+		// 	}
+		// }
+	})
+
+	// var application fyne.Widget
+	// if isNew {
+	// 	application = applicationSelect
+	// } else {
+	// 	// application = widget.NewLabel(appSetting.Display())
+	// }
+	// form := widget.NewForm(
+	// 	widget.NewFormItem("Display", displaySelect),
+	// 	widget.NewFormItem("Match Type", matchType),
+	// )
+	// if isNew {
+	// 	form.SubmitText = "Create"
+	// } else {
+	// 	form.SubmitText = "Save"
+	// }
+	// form.OnSubmit = func() {
+	// 	fmt.Println("submit")
+	// }
+	// form.OnCancel = func() {
+	// 	fmt.Println("cancel")
+	// }
+
+	// Layout
+	content := container.NewVBox(
+		// centeredLabel,
+		// application,
+		displaySelect,
+		widget.NewLabel("Match Type"),
+		matchType,
+		textGrid,
+		// form,
+		// testBtn,
+	)
+	if isNew {
+		content.Objects = append([]fyne.CanvasObject{applicationSelect}, content.Objects...)
+	}
+
+	var windowSub rx.Subscription
+	if isNew {
+		fmt.Println("subscribing to windows observable")
+		// TODO: make it work like subject where it outputs last received data on subscription
+
+		windowSub = windowObs.Subscribe(func(windows []Window) {
+			// fmt.Println("windows updated")
+			if len(windows) == 0 {
+				// fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+				// fmt.Println("windows array is empty")
+				// This is probably a fluke, so let's skip it
+				return
+			}
+			// for _, win := range windows {
+			// 	if win.title == "NoMoreBorderGo" {
+			// 		rect := getWindowRect(win.hwnd)
+			// 		fmt.Println("NoMoreBorderGo window rect:", rect)
+			// 	}
+			// }
+			fyne.Do(func() {
+				slices.SortFunc(windows, func(a Window, b Window) int {
+					return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
+				})
+				applicationSelect.SetOptions(windows)
+
+				if applicationSelect.Selected != nil && slices.Index(windows, *applicationSelect.Selected) == -1 {
+					fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
+					applicationSelect.ClearSelected()
+				}
+			})
+		})
+	}
+
+	if isNew {
+		return dialog.NewCustomConfirm("New App Config", "Create", "Cancel", content, func(saved bool) {
+			windowSub.Unsubscribe()
+			if saved {
+				onClose(&appSetting)
+			} else {
+				onClose(nil)
+			}
+		}, parent)
+	} else {
+		return dialog.NewCustomConfirm(appSetting.Display(), "Save", "Cancel", content, func(saved bool) {
+			if saved {
+				onClose(&appSetting)
+			} else {
+				onClose(nil)
+			}
+		}, parent)
+	}
+}

@@ -19,7 +19,7 @@ type Select[T SelectOption] struct {
 
 func (s *Select[T]) SetOptions(options []T) {
 	s.Options = options
-	s.Select.Options = s.optionsAsStrings()
+	s.Select.SetOptions(s.optionsAsStrings())
 }
 func (s *Select[T]) SetSelected(option T) {
 	s.Select.SetSelected(option.String())
@@ -57,7 +57,12 @@ func NewSelect[T SelectOption](options []T, changed func(T)) *Select[T] {
 		if index != -1 {
 			changed(s.Options[index])
 			s.Selected = &s.Options[index]
+		} else {
+			// Doing this manually to avoid stack overflow/recursive call
+			s.Selected = nil
+			s.Select.Selected = ""
 		}
+		s.Refresh()
 	}
 	s.ExtendBaseWidget(s)
 	return s

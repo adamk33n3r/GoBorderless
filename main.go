@@ -26,8 +26,7 @@ func (w Window) String() string {
 }
 
 var monitors []Monitor
-
-var chWindowList = make(chan []Window, 1) // Channel to send window list updates
+var chWindowList = make(chan []Window) // Channel to send window list updates
 
 var ALWAYS_HIDDEN_PROCESSESS = []string{
 	// Skip self
@@ -82,11 +81,12 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 	}
 
 	// Filter out windows that don't have normal borders cause they're probably not "real" windows
-	style := getWindowStyle(hwnd)
-	if !(style&win.WS_CAPTION > 0 &&
-		((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0)) {
-		return 1
-	}
+	// TODO put this only in the select dropdown since we need these kinds here to be able to restore windows
+	// style := getWindowStyle(hwnd)
+	// if !(style&win.WS_CAPTION > 0 &&
+	// 	((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0)) {
+	// 	return 1
+	// }
 
 	// Filter out windows with no size
 	rect := getWindowRect(hwnd)
@@ -116,10 +116,13 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 
 	restoredPtr := (*[]Window)(unsafe.Pointer(lparam)) //nolint:govet
 
+	// fmt.Println("adding window to list:", title)
 	*restoredPtr = append(*restoredPtr, Window{hwnd: hwnd, title: title, exePath: pname})
+	// fmt.Printf("address of restoredPtr: 0x%x\n", lparam)
+	// fmt.Println(len(*restoredPtr))
 
 	// Print window handle, title, and executable path
-	// fmt.Printf("HWND: 0x%x\nTitle: %s\nExe Path: %s\n\n", hwnd, title, exePath)
+	// fmt.Printf("HWND: 0x%x\nTitle: %s\nExe Path: %s\n\n", hwnd, title, pname)
 
 	return 1 // continue enumeration
 }
@@ -141,11 +144,19 @@ func matchWindow(win Window, appSetting AppSetting) bool {
 
 func scanWindows(settings *Settings) {
 	for {
-		tempList := make([]Window, 0, 32) // Temporary list to store window titles
-		// Callback function for EnumWindows, called for each top-level window handle (hwnd)
-		enumWindows(enumWindowsCallback, unsafe.Pointer(&tempList))
+		tempList := make([]Window, 0) // Temporary list to store window titles
+		tempListPtr := unsafe.Pointer(&tempList)
+		// fmt.Println("address of tempList:", tempListPtr)
 
-		// fmt.Println("sending channel")
+		// stupid needs to be done for some reason. if not, the first time we call enumWinodws len(tempList) is 0
+		// even though you can see it adding things in enumWindowsCallback. why does "using" the pointer cause it to work?
+		var _ = fmt.Sprint(tempListPtr)
+		// Callback function for EnumWindows, called for each top-level window handle (hwnd)
+		enumWindows(enumWindowsCallback, tempListPtr)
+		// time.Sleep(1 * time.Second)
+
+		// fmt.Println("address of tempList after:", unsafe.Pointer(&tempList))
+		// fmt.Println("sending channel:", len(tempList))
 		chWindowList <- tempList // Update global window list
 		// fmt.Println("done sending channel")
 		for appSettingIdx := range settings.Apps {
@@ -177,6 +188,23 @@ func main() {
 		fmt.Printf("  Resolution: %dx%d\n", mon.width, mon.height)
 		fmt.Printf("  Position: (%d, %d)\n", mon.left, mon.top)
 	}
+	fmt.Println("starting scan")
 	go scanWindows(settings)
+	// go func() {
+	// 	for {
+	// 		tempList := make([]Monitor, 0)
+	// 		fmt.Println("before enumWindows")
+	// 		var ptr = unsafe.Pointer(&tempList)
+	// 		var _ = fmt.Sprint(ptr)
+	// 		enumWindows(enumWindowsCallback, ptr)
+	// 		fmt.Println("outside len:", len(tempList))
+	// 		// enumWindows(func(hwnd uintptr, lparam uintptr) uintptr {
+	// 		// 	fmt.Println("inside len:", len())
+	// 		// 	return 1
+	// 		// }, unsafe.Pointer(&tempList))
+	// 		time.Sleep(1 * time.Second)
+	// 	}
+	// }()
+	fmt.Println("building app")
 	buildApp(settings)
 }

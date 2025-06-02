@@ -1,9 +1,9 @@
 {
     "go.lintTool": "staticcheck",
-    "go.lintFlags": [
-        // "--path-mode=abs",
-        // "--fast-only"
-    ],
+    // "go.lintFlags": [
+    //     "--path-mode=abs",
+    //     "--fast-only"
+    // ],
     // "go.formatTool": "custom",
     // "go.alternateTools": {
     //     "customFormatter": "golangci-lint-v2"

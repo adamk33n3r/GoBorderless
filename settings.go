@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 var (
@@ -55,14 +57,18 @@ func GetMatchTypeFromString(s string) MatchType {
 type AppSetting struct {
 	WindowName string    `json:"windowName"`
 	ExePath    string    `json:"exePath"`
+	MatchType  MatchType `json:"matchType"`
+	Monitor    int       `json:"monitor"`
 	PreHeight  int32     `json:"preHeight"`
 	PreWidth   int32     `json:"preWidth"`
-	Height     int32     `json:"height"`
 	Width      int32     `json:"width"`
+	Height     int32     `json:"height"`
 	OffsetX    int32     `json:"offsetX"`
 	OffsetY    int32     `json:"offsetY"`
-	Monitor    int32     `json:"monitor"`
-	MatchType  MatchType `json:"matchType"`
+}
+
+func (as AppSetting) Display() string {
+	return fmt.Sprintf("%s | %s", as.WindowName, as.ExePath)
 }
 
 type Settings struct {
@@ -71,7 +77,7 @@ type Settings struct {
 	StartWithWindows bool         `json:"startWithWindows"`
 }
 
-func NewSettings() *Settings {
+func newSettings() *Settings {
 	return &Settings{
 		Apps:             make([]AppSetting, 0),
 		Theme:            "System",
@@ -84,14 +90,21 @@ func loadSettings() (*Settings, error) {
 	bytes, err := os.ReadFile(settingsPath)
 	// No settings file found, create default settings
 	if err != nil {
-		return NewSettings(), nil
+		return newSettings(), nil
 	}
 
 	var settings *Settings
 	if err := json.Unmarshal(bytes, &settings); err != nil {
-		return NewSettings(), err
+		return newSettings(), err
 	}
+	settings.sortApps()
 	return settings, nil
+}
+
+func (settings *Settings) sortApps() {
+	slices.SortFunc(settings.Apps, func(a AppSetting, b AppSetting) int {
+		return strings.Compare(a.WindowName, b.WindowName)
+	})
 }
 
 func (settings *Settings) Save() error {
@@ -123,6 +136,7 @@ func backUpSettingsFile() error {
 
 func (settings *Settings) AddApp(app AppSetting) {
 	settings.Apps = append(settings.Apps, app)
+	settings.sortApps()
 }
 
 func (settings *Settings) RemoveApp(appSettingIdx int) {
