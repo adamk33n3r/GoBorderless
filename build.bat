@@ -1,2 +1,2 @@
 @echo off
-go build -ldflags "-s -w -H=windowsgui"
+fyne package --release

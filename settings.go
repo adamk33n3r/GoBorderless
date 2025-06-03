@@ -78,6 +78,9 @@ type Settings struct {
 	Apps             []AppSetting `json:"apps"`
 	Theme            string       `json:"theme"`
 	StartWithWindows bool         `json:"startWithWindows"`
+	CloseToTray      bool         `json:"closeToTray"`
+	MinimizeToTray   bool         `json:"minimizeToTray"`
+	StartMinimized   bool         `json:"startMinimized"`
 }
 
 func newSettings() *Settings {

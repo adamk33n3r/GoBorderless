@@ -2,20 +2,22 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"math/rand"
 	"slices"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/adamk33n3r/GoBorderless/res"
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
 	fynetooltip "github.com/dweymouth/fyne-tooltip"
-	"golang.org/x/sys/windows/registry"
+	"github.com/lxn/win"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -52,10 +54,56 @@ func launchAppSettingDialog(parent fyne.Window, new bool, appSetting AppSetting,
 	dialog.Show()
 }
 
-func buildApp(settings *Settings) {
-	goBorderlessApp := app.New()
+var hwnds = make(map[fyne.Window]win.HWND)
+
+/**
+ * Get's the HWND for a fyne window by temporarily setting it's title to a random string in order to find it.
+ */
+func getFyneHWND(w fyne.Window) win.HWND {
+	if h, ok := hwnds[w]; ok {
+		return h
+	}
+
+	randomTitle := make([]byte, 128)
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	for i := range randomTitle {
+		randomTitle[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	originalTitle := w.Title()
+	defer w.SetTitle(originalTitle)
+
+	w.SetTitle(string(randomTitle))
+
+	// Try by foreground
+	if h := win.GetForegroundWindow(); h != 0 {
+		t := getWindowTitle(uintptr(h))
+		if string(randomTitle) == t {
+			hwnds[w] = h
+			return h
+		}
+	}
+
+	enumWindows(func(hwnd, lparam uintptr) uintptr {
+		title := getWindowTitle(hwnd)
+		if string(randomTitle) == title {
+			hwnds[w] = win.HWND(hwnd)
+			return 0
+		}
+		return 1
+	}, nil)
+
+	if hwnds[w] != 0 {
+		return hwnds[w]
+	}
+
+	return win.HWND(0)
+}
+
+func buildApp(settings *Settings) fyne.App {
+	fyneApp := app.New()
+	fyneApp.SetIcon(res.ResIconPng)
 	before := time.Now()
-	mainWindow := goBorderlessApp.NewWindow(APP_NAME)
+	mainWindow := fyneApp.NewWindow(APP_NAME)
 	fmt.Println("NewWindow took:", time.Since(before))
 	fmt.Println(monitors)
 
@@ -153,35 +201,11 @@ func buildApp(settings *Settings) {
 			settings.Save()
 			settingsList.Refresh()
 		}
-		// co.(*fyne.Container).Objects[0].(*widget.Label).SetText(settings.Apps[lii].WindowName)
-		// co.(*fyne.Container).Objects[2].(*widget.Button).OnTapped = func() {
-		// 	appSetting := settings.Apps[lii]
-		// 	launchAppSettingDialog(mainWindow, false, &appSetting, func(saved bool) {
-		// 		if saved {
-		// 			fmt.Println("was saved?")
-		// 			fmt.Println(appSetting)
-		// 			settings.Apps[lii] = appSetting
-		// 			settings.Save()
-		// 		}
-		// 	})
-		// }
 	})
-	// appTiles := make([]fyne.CanvasObject, 0)
-	// for _, appSetting := range settings.Apps {
-	// 	appTiles = append(appTiles, widget.NewButton(appSetting.WindowName, func() {}))
-	// }
-	// appGrid := container.NewGridWrap(fyne.NewSquareSize(100), appTiles...)
 	settingsList.OnSelected = func(id widget.ListItemID) {
 		fmt.Println("selected:", id)
 		settingsList.UnselectAll()
-		// appSetting := settings.Apps[id]
-		// launchAppSettingDialog(mainWindow, false, &appSetting, func(saved bool) {
-		// 	if saved {
-		// 		fmt.Println("was saved?")
-		// 	}
-		// })
 	}
-	// settingsList.Resize(fyne.NewSize())
 
 	centeredAppLabel := container.NewHBox(
 		layout.NewSpacer(),
@@ -195,34 +219,11 @@ func buildApp(settings *Settings) {
 		nil,
 		nil,
 		settingsList,
-		// appGrid,
-	)
-
-	regName := "NoMoreBorderGo"
-	regKey := "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-	appExePath, _ := os.Executable()
-	// Checkbox
-	startWithWindowsCheck := widget.NewCheck("Start with Windows", func(checked bool) {
-		openKey, _ := registry.OpenKey(registry.CURRENT_USER, regKey, registry.ALL_ACCESS)
-		defer openKey.Close()
-		if checked {
-			openKey.SetStringValue(regName, appExePath)
-		} else {
-			openKey.DeleteValue(regName)
-		}
-	})
-	openKey, _ := registry.OpenKey(registry.CURRENT_USER, regKey, registry.ALL_ACCESS)
-	_, _, err := openKey.GetStringValue(regName)
-	startWithWindowsCheck.SetChecked(err == nil)
-	openKey.Close()
-
-	settingsContent := container.NewVBox(
-		startWithWindowsCheck,
 	)
 
 	appTabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Apps", theme.ListIcon(), content),
-		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsContent),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), buildSettingsTab(settings)),
 	)
 
 	mainWindow.SetContent(fynetooltip.AddWindowToolTipLayer(container.NewBorder(
@@ -234,7 +235,51 @@ func buildApp(settings *Settings) {
 	), mainWindow.Canvas()))
 	mainWindow.CenterOnScreen()
 	mainWindow.Resize(fyne.NewSquareSize(620))
-	// myWindow.Resize(fyne.NewSize(400, 400))
+
 	fmt.Println("running app...")
-	mainWindow.ShowAndRun()
+	mainWindow.Show()
+	mainWindowHWND := getFyneHWND(mainWindow)
+	if mainWindowHWND != 0 {
+		if desk, ok := fyneApp.(desktop.App); ok {
+			m := fyne.NewMenu(APP_NAME,
+				fyne.NewMenuItem("Show", func() {
+					fmt.Println("Show")
+					mainWindow.Show()
+					win.ShowWindow(mainWindowHWND, win.SW_RESTORE)
+				}))
+			desk.SetSystemTrayMenu(m)
+		}
+
+		mainWindow.SetCloseIntercept(func() {
+			if !settings.CloseToTray {
+				fyneApp.Quit()
+				return
+			}
+			fmt.Println("intercept close, hiding window")
+			mainWindow.Hide()
+		})
+
+		// Intercept minimize
+		go func() {
+			for {
+				time.Sleep(250 * time.Millisecond)
+				if !settings.MinimizeToTray {
+					continue
+				}
+				if win.IsIconic(mainWindowHWND) {
+					fyne.DoAndWait(func() {
+						mainWindow.Hide()
+					})
+				}
+			}
+		}()
+
+		if settings.StartMinimized {
+			win.ShowWindow(mainWindowHWND, win.SW_MINIMIZE)
+		}
+	} else {
+		fmt.Println("couldn't find window handle")
+	}
+
+	return fyneApp
 }

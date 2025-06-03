@@ -218,5 +218,6 @@ func main() {
 	// 	}
 	// }()
 	fmt.Println("building app")
-	buildApp(settings)
+	fyneApp := buildApp(settings)
+	fyneApp.Run()
 }
