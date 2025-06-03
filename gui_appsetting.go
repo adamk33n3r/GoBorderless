@@ -8,6 +8,7 @@ import (
 
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
+	"github.com/lxn/win"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -30,6 +31,24 @@ func entryTextToInt(s string) int32 {
 	return int32(intVal)
 }
 
+func getWindowsForSelect(allWindows []Window) []Window {
+	copyOfWindows := make([]Window, 0, len(allWindows))
+	// Filter out windows that don't have normal borders cause they're probably not "real" windows
+	// This will also filter out windows that we've already removed borders from
+	// Perhaps we should also check the list of existing configs?
+	for _, window := range allWindows {
+		style := getWindowStyle(window.hwnd)
+		if style&win.WS_CAPTION > 0 &&
+			((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0) {
+			copyOfWindows = append(copyOfWindows, window)
+		}
+	}
+	slices.SortFunc(copyOfWindows, func(a Window, b Window) int {
+		return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
+	})
+	return copyOfWindows
+}
+
 func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.ConfirmDialog {
 	monitorIdx := appSetting.Monitor - 1
 	if isNew {
@@ -39,25 +58,12 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	}
 	selectedMonitor := monitors[monitorIdx]
 
-	// resLabel := widget.NewLabel(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
-
-	// windowCountLabel = widget.NewLabel(fmt.Sprintf("Window Count: %d", 0))
-
-	// // Center the label
-	// centeredLabel := container.NewHBox(
-	// 	layout.NewSpacer(),
-	// 	resLabel,
-	// 	windowCountLabel,
-	// 	layout.NewSpacer(),
-	// )
-
-	// Dropdowns
 	currentWindowsMutex.Lock()
-	slices.SortFunc(currentWindows, func(a Window, b Window) int {
-		return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
-	})
-	applicationSelect = ui.NewSelect(currentWindows, func(selected Window) {
-		if slices.Index(currentWindows, selected) == -1 {
+	windowsForSelect := getWindowsForSelect(currentWindows)
+	currentWindowsMutex.Unlock()
+
+	applicationSelect = ui.NewSelect(windowsForSelect, func(selected Window) {
+		if slices.Index(windowsForSelect, selected) == -1 {
 			fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
 			applicationSelect.ClearSelected()
 		}
@@ -65,9 +71,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 		appSetting.WindowName = selected.title
 		appSetting.ExePath = selected.exePath
 	})
-	currentWindowsMutex.Unlock()
 	applicationSelect.PlaceHolder = "Select Application"
-	fmt.Println("FIRST VALUE", applicationSelect.Select.Selected)
 
 	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
 		// resLabel.SetText(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
@@ -303,12 +307,10 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 			// 	}
 			// }
 			fyne.Do(func() {
-				slices.SortFunc(windows, func(a Window, b Window) int {
-					return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
-				})
-				applicationSelect.SetOptions(windows)
+				windowsForSelect := getWindowsForSelect(windows)
+				applicationSelect.SetOptions(windowsForSelect)
 
-				if applicationSelect.Selected != nil && slices.Index(windows, *applicationSelect.Selected) == -1 {
+				if applicationSelect.Selected != nil && slices.Index(windowsForSelect, *applicationSelect.Selected) == -1 {
 					fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
 					applicationSelect.ClearSelected()
 				}
