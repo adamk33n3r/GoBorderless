@@ -14,12 +14,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          show-progress: false
+          fetch-depth: 0
+
+      - run: git fetch --tags --force
+
+      - name: Create changelog
+        run: |
+          git log $(git describe --tags --abbrev=0 @^)..@ --pretty=%B > CHANGELOG.md
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+
       - name : Install Fyne
         run: go install fyne.io/tools/cmd/fyne@latest
+
       - name: Build
         run: fyne package --release
       # - name: Upload Artifact
@@ -34,3 +46,4 @@ jobs:
           artifacts: "GoBorderless.exe"
           name: ${{ github.ref_name }}
           generateReleaseNotes: true
+          bodyFile: "CHANGELOG.md"
