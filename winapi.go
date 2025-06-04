@@ -118,8 +118,6 @@ func getMonitors() []Monitor {
 		info.CbSize = uint32(unsafe.Sizeof(info))
 		if win.GetMonitorInfo(hMonitor, &info) {
 			index++
-			// info.RcMonitor.Left = info.RcMonitor.Left / win.GetDeviceCaps(hdcMonitor, win.LOGPIXELSX) * win.GetDeviceCaps(hdcMonitor, win.LOGPIXELSX)
-			fmt.Println("Monitor ", index, "\n", info.DwFlags&win.MONITORINFOF_PRIMARY != 0, "\n", info.RcMonitor, "\n", info.RcWork)
 			monitors = append(monitors, Monitor{
 				number:    index,
 				isPrimary: info.DwFlags&win.MONITORINFOF_PRIMARY != 0,

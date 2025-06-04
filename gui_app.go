@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
@@ -105,7 +106,6 @@ func buildApp(settings *Settings) fyne.App {
 	before := time.Now()
 	mainWindow := fyneApp.NewWindow(APP_NAME)
 	fmt.Println("NewWindow took:", time.Since(before))
-	fmt.Println(monitors)
 
 	windowObs.Subscribe(func(windows []Window) {
 		// fmt.Println("MainApp: windows updated")
@@ -236,50 +236,56 @@ func buildApp(settings *Settings) fyne.App {
 	mainWindow.CenterOnScreen()
 	mainWindow.Resize(fyne.NewSquareSize(620))
 
-	fmt.Println("running app...")
+	fmt.Println("Running app...")
 	mainWindow.Show()
-	mainWindowHWND := getFyneHWND(mainWindow)
-	if mainWindowHWND != 0 {
-		if desk, ok := fyneApp.(desktop.App); ok {
-			m := fyne.NewMenu(APP_NAME,
-				fyne.NewMenuItem("Show", func() {
-					fmt.Println("Show")
-					mainWindow.Show()
-					win.ShowWindow(mainWindowHWND, win.SW_RESTORE)
-				}))
-			desk.SetSystemTrayMenu(m)
-		}
-
-		mainWindow.SetCloseIntercept(func() {
-			if !settings.CloseToTray {
-				fyneApp.Quit()
-				return
-			}
-			fmt.Println("intercept close, hiding window")
-			mainWindow.Hide()
-		})
-
-		// Intercept minimize
-		go func() {
-			for {
-				time.Sleep(250 * time.Millisecond)
-				if !settings.MinimizeToTray {
-					continue
-				}
-				if win.IsIconic(mainWindowHWND) {
-					fyne.DoAndWait(func() {
-						mainWindow.Hide()
-					})
-				}
-			}
-		}()
-
-		if settings.StartMinimized {
-			win.ShowWindow(mainWindowHWND, win.SW_MINIMIZE)
-		}
-	} else {
-		fmt.Println("couldn't find window handle")
-	}
+	handleWindowsInit(fyneApp, mainWindow, settings)
 
 	return fyneApp
+}
+
+func handleWindowsInit(fyneApp fyne.App, window fyne.Window, settings *Settings) {
+	window.(driver.NativeWindow).RunNative(func(context any) {
+		switch ctx := context.(type) {
+		case driver.WindowsWindowContext:
+			windowHWND := win.HWND(ctx.HWND)
+			if desk, ok := fyneApp.(desktop.App); ok {
+				m := fyne.NewMenu(APP_NAME,
+					fyne.NewMenuItem("Show", func() {
+						window.Show()
+						win.ShowWindow(windowHWND, win.SW_RESTORE)
+					}))
+				desk.SetSystemTrayMenu(m)
+			}
+
+			window.SetCloseIntercept(func() {
+				if !settings.CloseToTray {
+					fyneApp.Quit()
+					return
+				}
+				window.Hide()
+			})
+
+			// Intercept minimize
+			go func() {
+				for {
+					time.Sleep(250 * time.Millisecond)
+					if !settings.MinimizeToTray {
+						continue
+					}
+					if win.IsIconic(windowHWND) {
+						fyne.DoAndWait(func() {
+							window.Hide()
+						})
+					}
+				}
+			}()
+
+			if settings.StartMinimized {
+				win.ShowWindow(windowHWND, win.SW_MINIMIZE)
+			}
+		default:
+			fmt.Println("not running in windows....don't do that")
+			fyneApp.Quit()
+		}
+	})
 }

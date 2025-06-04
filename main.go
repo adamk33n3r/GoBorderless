@@ -200,24 +200,8 @@ func main() {
 		fmt.Printf("  Resolution: %dx%d\n", mon.width, mon.height)
 		fmt.Printf("  Position: (%d, %d)\n", mon.left, mon.top)
 	}
-	fmt.Println("starting scan")
 	go scanWindows(settings)
-	// go func() {
-	// 	for {
-	// 		tempList := make([]Monitor, 0)
-	// 		fmt.Println("before enumWindows")
-	// 		var ptr = unsafe.Pointer(&tempList)
-	// 		var _ = fmt.Sprint(ptr)
-	// 		enumWindows(enumWindowsCallback, ptr)
-	// 		fmt.Println("outside len:", len(tempList))
-	// 		// enumWindows(func(hwnd uintptr, lparam uintptr) uintptr {
-	// 		// 	fmt.Println("inside len:", len())
-	// 		// 	return 1
-	// 		// }, unsafe.Pointer(&tempList))
-	// 		time.Sleep(1 * time.Second)
-	// 	}
-	// }()
-	fmt.Println("building app")
+	fmt.Println("Building app")
 	fyneApp := buildApp(settings)
 	fyneApp.Run()
 }
