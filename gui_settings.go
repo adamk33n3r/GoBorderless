@@ -50,9 +50,9 @@ func buildSettingsTab(settings *Settings) *fyne.Container {
 	startMinimized.SetChecked(settings.StartMinimized)
 
 	return container.NewVBox(
-		startWithWindowsCheck,
-		closeToTray,
-		minimizeToTray,
-		startMinimized,
+		container.NewGridWithColumns(2,
+			container.NewVBox(startWithWindowsCheck, minimizeToTray),
+			container.NewVBox(startMinimized, closeToTray),
+		),
 	)
 }

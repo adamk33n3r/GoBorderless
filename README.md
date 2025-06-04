@@ -21,3 +21,7 @@ And then just run
 air
 ```
 to start it. It uses the `.air.toml` file in the repository by default.
+
+TODO:
+Multiple of same app (prevent? or prevent auto-apply to all?)
+Validation

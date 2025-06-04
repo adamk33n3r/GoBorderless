@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -50,54 +48,9 @@ var settingsList *widget.List
 var currentWindows = make([]Window, 0) // Temporary list to store window titles
 var currentWindowsMutex sync.Mutex
 
-func launchAppSettingDialog(parent fyne.Window, new bool, appSetting AppSetting, onClose func(newSetting *AppSetting)) {
-	dialog := makeAppSettingWindow(appSetting, new, parent, onClose)
+func launchAppSettingDialog(parent fyne.Window, new bool, settings *Settings, appSetting AppSetting, onClose func(newSetting *AppSetting)) {
+	dialog := makeAppSettingWindow(settings, appSetting, new, parent, onClose)
 	dialog.Show()
-}
-
-var hwnds = make(map[fyne.Window]win.HWND)
-
-/**
- * Get's the HWND for a fyne window by temporarily setting it's title to a random string in order to find it.
- */
-func getFyneHWND(w fyne.Window) win.HWND {
-	if h, ok := hwnds[w]; ok {
-		return h
-	}
-
-	randomTitle := make([]byte, 128)
-	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	for i := range randomTitle {
-		randomTitle[i] = letterBytes[rand.Intn(len(letterBytes))]
-	}
-	originalTitle := w.Title()
-	defer w.SetTitle(originalTitle)
-
-	w.SetTitle(string(randomTitle))
-
-	// Try by foreground
-	if h := win.GetForegroundWindow(); h != 0 {
-		t := getWindowTitle(uintptr(h))
-		if string(randomTitle) == t {
-			hwnds[w] = h
-			return h
-		}
-	}
-
-	enumWindows(func(hwnd, lparam uintptr) uintptr {
-		title := getWindowTitle(hwnd)
-		if string(randomTitle) == title {
-			hwnds[w] = win.HWND(hwnd)
-			return 0
-		}
-		return 1
-	}, nil)
-
-	if hwnds[w] != 0 {
-		return hwnds[w]
-	}
-
-	return win.HWND(0)
 }
 
 func buildApp(settings *Settings) fyne.App {
@@ -116,7 +69,7 @@ func buildApp(settings *Settings) fyne.App {
 
 	newAppConfig := widget.NewButtonWithIcon("Create New App Config", theme.ContentAddIcon(), func() {
 		newAppSetting := AppSetting{}
-		launchAppSettingDialog(mainWindow, true, newAppSetting, func(newSetting *AppSetting) {
+		launchAppSettingDialog(mainWindow, true, settings, newAppSetting, func(newSetting *AppSetting) {
 			if newSetting != nil {
 				fmt.Println(newSetting)
 				settings.AddApp(*newSetting)
@@ -157,6 +110,9 @@ func buildApp(settings *Settings) fyne.App {
 			appSetting := settings.Apps[lii]
 			fmt.Println("clicked apply for:", appSetting.Display())
 			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			if win == nil {
+				return
+			}
 			if !isBorderless(*win) {
 				originalRect := getWindowRect(win.hwnd)
 				appSetting.PreWidth = int32(originalRect.Right - originalRect.Left)
@@ -172,6 +128,9 @@ func buildApp(settings *Settings) fyne.App {
 			appSetting := settings.Apps[lii]
 			fmt.Println("clicked undo for:", appSetting.Display())
 			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			if win == nil {
+				return
+			}
 			restoreWindow(*win, appSetting)
 		}
 		if appSetting.AutoApply {
@@ -181,7 +140,7 @@ func buildApp(settings *Settings) fyne.App {
 		row.EditBtn.OnTapped = func() {
 			// Need to fetch again from array to "reset" the values since this update func is only called on occasion
 			appSetting := settings.Apps[lii]
-			launchAppSettingDialog(mainWindow, false, appSetting, func(newSetting *AppSetting) {
+			launchAppSettingDialog(mainWindow, false, settings, appSetting, func(newSetting *AppSetting) {
 				if newSetting != nil {
 					fmt.Println(newSetting)
 					settings.Apps[lii] = *newSetting
@@ -191,12 +150,10 @@ func buildApp(settings *Settings) fyne.App {
 		}
 		row.DeleteBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
-			idx := slices.IndexFunc(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
-			if idx == -1 {
-				fmt.Println("No matching window found")
-				return
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			if win != nil {
+				restoreWindow(*win, appSetting)
 			}
-			restoreWindow(currentWindows[idx], appSetting)
 			settings.RemoveApp(lii)
 			settings.Save()
 			settingsList.Refresh()
@@ -223,6 +180,7 @@ func buildApp(settings *Settings) fyne.App {
 
 	appTabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Apps", theme.ListIcon(), content),
+		container.NewTabItemWithIcon("Defaults", theme.ViewRestoreIcon(), buildDefaultsTab(settings)),
 		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), buildSettingsTab(settings)),
 	)
 

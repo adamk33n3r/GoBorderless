@@ -142,6 +142,15 @@ func matchWindow(win Window, appSetting AppSetting) bool {
 	}
 }
 
+func getPrimaryMonitor() Monitor {
+	for _, monitor := range monitors {
+		if monitor.isPrimary {
+			return monitor
+		}
+	}
+	return monitors[0]
+}
+
 func scanWindows(settings *Settings) {
 	for {
 		tempList := make([]Window, 0) // Temporary list to store window titles
@@ -192,9 +201,21 @@ func main() {
 		fmt.Println("Error loading settings:", err)
 		backUpSettingsFile()
 	}
+
+	monitors = getMonitors()
+	primaryMonitor := getPrimaryMonitor()
+	if settings.Defaults.Monitor == 0 {
+		settings.Defaults.Monitor = primaryMonitor.number
+	}
+	if settings.Defaults.Width == 0 {
+		settings.Defaults.Width = primaryMonitor.width
+	}
+	if settings.Defaults.Height == 0 {
+		settings.Defaults.Height = primaryMonitor.height
+	}
+
 	settings.Save()
 	fmt.Println(settings)
-	monitors = getMonitors()
 	for _, mon := range monitors {
 		fmt.Printf("Monitor %d\n", mon.number)
 		fmt.Printf("  Resolution: %dx%d\n", mon.width, mon.height)

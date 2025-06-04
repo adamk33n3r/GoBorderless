@@ -62,15 +62,7 @@ func getWindowsForSelect(allWindows []Window) []Window {
 	return copyOfWindows
 }
 
-func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.ConfirmDialog {
-	monitorIdx := appSetting.Monitor - 1
-	if isNew {
-		monitorIdx = slices.IndexFunc(monitors, func(m Monitor) bool {
-			return m.isPrimary
-		})
-	}
-	selectedMonitor := monitors[monitorIdx]
-
+func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.ConfirmDialog {
 	currentWindowsMutex.Lock()
 	windowsForSelect := getWindowsForSelect(currentWindows)
 	currentWindowsMutex.Unlock()
@@ -86,8 +78,16 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	})
 	applicationSelect.PlaceHolder = "Select Application"
 
+	monitorIdx := appSetting.Monitor - 1
+	if isNew {
+		monitorIdx = settings.Defaults.Monitor - 1
+		if monitorIdx < 0 {
+			monitorIdx = slices.IndexFunc(monitors, func(m Monitor) bool {
+				return m.isPrimary
+			})
+		}
+	}
 	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
-		// resLabel.SetText(fmt.Sprintf("Display Resolution is %dx%d", selectedMonitor.width, selectedMonitor.height))
 		appSetting.Monitor = selected.number
 	})
 	displaySelect.PlaceHolder = "Select Display"
@@ -97,7 +97,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 		appSetting.MatchType = GetMatchTypeFromString(selected)
 	})
 	if isNew {
-		matchType.SetSelected(matchTypes[0])
+		matchType.SetSelected(settings.Defaults.MatchType.String())
 	} else {
 		matchType.SetSelected(appSetting.MatchType.String())
 	}
@@ -118,7 +118,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	})
 	xOffsetText.SetPlaceHolder("0")
 	if isNew {
-		xOffsetText.SetText("0")
+		xOffsetText.SetText(strconv.Itoa(int(settings.Defaults.OffsetX)))
 	} else {
 		xOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetX)))
 	}
@@ -136,7 +136,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	})
 	yOffsetText.SetPlaceHolder("0")
 	if isNew {
-		yOffsetText.SetText("0")
+		yOffsetText.SetText(strconv.Itoa(int(settings.Defaults.OffsetY)))
 	} else {
 		yOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetY)))
 	}
@@ -154,7 +154,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	})
 	widthText.SetPlaceHolder("1920")
 	if isNew {
-		widthText.SetText(fmt.Sprintf("%d", selectedMonitor.width))
+		widthText.SetText(strconv.Itoa(int(settings.Defaults.Width)))
 	} else {
 		widthText.SetText(strconv.Itoa(int(appSetting.Width)))
 	}
@@ -172,7 +172,7 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	})
 	heightText.SetPlaceHolder("1080")
 	if isNew {
-		heightText.SetText(fmt.Sprintf("%d", selectedMonitor.height))
+		heightText.SetText(strconv.Itoa(int(settings.Defaults.Height)))
 	} else {
 		heightText.SetText(strconv.Itoa(int(appSetting.Height)))
 	}
@@ -188,122 +188,6 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 			container.NewVBox(heightLabel, heightText),
 		),
 	)
-
-	// makeBorderlessBtn = widget.NewButton("Apply", func() {
-	// 	fmt.Println("Button 1 clicked")
-	// 	matchTypeSelected := GetMatchTypeFromString(matchType.Selected)
-	// 	x, errX := strconv.Atoi(xOffsetText.Text)
-	// 	y, errY := strconv.Atoi(yOffsetText.Text)
-	// 	w, errW := strconv.Atoi(widthText.Text)
-	// 	h, errH := strconv.Atoi(heightText.Text)
-	// 	if errX != nil || errY != nil || errW != nil || errH != nil {
-	// 		fmt.Println("Invalid input(s)")
-	// 		dialog.NewError(FirstError(errX, errY, errW, errH), window).Show()
-	// 		return
-	// 	}
-	// 	fmt.Println(x, y, w, h)
-	// 	updatedWindowsMutex.Lock()
-	// 	copyOfList := make([]Window, len(updatedWindows))
-	// 	copy(copyOfList, updatedWindows)
-	// 	updatedWindowsMutex.Unlock()
-	// 	selectedApp := applicationSelect.Selected
-	// 	originalRect := getWindowRect(selectedApp.hwnd)
-	// 	appSetting := AppSetting{
-	// 		WindowName: selectedApp.title,
-	// 		ExePath:    selectedApp.exePath,
-	// 		PreWidth:   int32(originalRect.Right - originalRect.Left),
-	// 		PreHeight:  int32(originalRect.Bottom - originalRect.Top),
-	// 		OffsetX:    int32(x),
-	// 		OffsetY:    int32(y),
-	// 		Width:      int32(w),
-	// 		Height:     int32(h),
-	// 		Monitor:    int32(selectedMonitor.number),
-	// 		MatchType:  matchTypeSelected,
-	// 	}
-	// 	// idx := slices.IndexFunc(copyOfList, func(win Window) bool {
-	// 	// 	return matchWindow(win, appSetting)
-	// 	// })
-	// 	// if idx == -1 {
-	// 	// 	dialog.NewError(fmt.Errorf("No matching window found"), window).Show()
-	// 	// 	return
-	// 	// }
-	// 	// makeBorderless(copyOfList[idx], int32(x), int32(y), int32(w), int32(h))
-
-	// 	settings.AddApp(appSetting)
-	// 	settings.Save()
-	// })
-	// makeBorderlessBtn.Disable()
-	// removeBorderlessBtn = widget.NewButton("Remove", func() {
-	// 	fmt.Println("Button 2 clicked")
-	// 	updatedWindowsMutex.Lock()
-	// 	copyOfList := make([]Window, len(updatedWindows))
-	// 	copy(copyOfList, updatedWindows)
-	// 	updatedWindowsMutex.Unlock()
-	// 	appSettingIdx := slices.IndexFunc(settings.Apps, func(appSetting AppSetting) bool {
-	// 		return appSetting.WindowName == applicationSelect.Selected.title && appSetting.ExePath == applicationSelect.Selected.exePath
-	// 	})
-	// 	if appSettingIdx == -1 {
-	// 		dialog.NewError(fmt.Errorf("No matching application setting found"), window).Show()
-	// 		return
-	// 	}
-	// 	appSetting := settings.Apps[appSettingIdx]
-	// 	idx := slices.IndexFunc(copyOfList, func(win Window) bool { return matchWindow(win, appSetting) })
-	// 	if idx == -1 {
-	// 		dialog.NewError(fmt.Errorf("No matching window found"), window).Show()
-	// 		return
-	// 	}
-	// 	restoreWindow(copyOfList[idx], appSetting)
-	// 	settings.RemoveApp(appSettingIdx)
-	// 	settings.Save()
-	// })
-	// removeBorderlessBtn.Disable()
-
-	// testStep := 0
-	var _ = widget.NewButton("TEST", func() {
-		// for _, win := range copyOfList {
-		// 	if win.title == "Calculator" {
-		// 		switch testStep {
-		// 		case 0:
-		// 			makeBorderless(win, AppSetting{
-		// 				Monitor: 1,
-		// 				OffsetX: 0,
-		// 				OffsetY: 0,
-		// 				Width:   400,
-		// 				Height:  1200,
-		// 			})
-		// 			testStep++
-		// 		case 1:
-		// 			restoreWindow(win, AppSetting{
-		// 				PreWidth:  0,
-		// 				PreHeight: 0,
-		// 			})
-		// 			testStep = 0
-		// 		}
-		// 	}
-		// }
-	})
-
-	// var application fyne.Widget
-	// if isNew {
-	// 	application = applicationSelect
-	// } else {
-	// 	// application = widget.NewLabel(appSetting.Display())
-	// }
-	// form := widget.NewForm(
-	// 	widget.NewFormItem("Display", displaySelect),
-	// 	widget.NewFormItem("Match Type", matchType),
-	// )
-	// if isNew {
-	// 	form.SubmitText = "Create"
-	// } else {
-	// 	form.SubmitText = "Save"
-	// }
-	// form.OnSubmit = func() {
-	// 	fmt.Println("submit")
-	// }
-	// form.OnCancel = func() {
-	// 	fmt.Println("cancel")
-	// }
 
 	// Layout
 	content := container.NewVBox(

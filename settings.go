@@ -60,27 +60,37 @@ type AppSetting struct {
 	MatchType  MatchType `json:"matchType"`
 	AutoApply  bool      `json:"autoApply"`
 	Monitor    int       `json:"monitor"`
-	PreWidth   int32     `json:"preWidth"`
-	PreHeight  int32     `json:"preHeight"`
-	PreOffsetX int32     `json:"preOffsetX"`
-	PreOffsetY int32     `json:"preOffsetY"`
-	Width      int32     `json:"width"`
-	Height     int32     `json:"height"`
 	OffsetX    int32     `json:"offsetX"`
 	OffsetY    int32     `json:"offsetY"`
+	Width      int32     `json:"width"`
+	Height     int32     `json:"height"`
+	PreOffsetX int32     `json:"preOffsetX"`
+	PreOffsetY int32     `json:"preOffsetY"`
+	PreWidth   int32     `json:"preWidth"`
+	PreHeight  int32     `json:"preHeight"`
 }
 
 func (as AppSetting) Display() string {
 	return fmt.Sprintf("%s | %s", as.WindowName, as.ExePath)
 }
 
+type AppSettingDefaults struct {
+	Monitor   int       `json:"monitor"`
+	MatchType MatchType `json:"matchType"`
+	OffsetX   int32     `json:"offsetX"`
+	OffsetY   int32     `json:"offsetY"`
+	Width     int32     `json:"width"`
+	Height    int32     `json:"height"`
+}
+
 type Settings struct {
-	Apps             []AppSetting `json:"apps"`
-	Theme            string       `json:"theme"`
-	StartWithWindows bool         `json:"startWithWindows"`
-	CloseToTray      bool         `json:"closeToTray"`
-	MinimizeToTray   bool         `json:"minimizeToTray"`
-	StartMinimized   bool         `json:"startMinimized"`
+	Apps             []AppSetting       `json:"apps"`
+	Theme            string             `json:"theme"`
+	StartWithWindows bool               `json:"startWithWindows"`
+	CloseToTray      bool               `json:"closeToTray"`
+	MinimizeToTray   bool               `json:"minimizeToTray"`
+	StartMinimized   bool               `json:"startMinimized"`
+	Defaults         AppSettingDefaults `json:"defaults"`
 }
 
 func newSettings() *Settings {

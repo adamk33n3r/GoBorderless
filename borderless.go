@@ -21,7 +21,13 @@ func makeBorderless(window Window, appSetting AppSetting) {
 	setWindowPos(window.hwnd, appSetting.OffsetX+monitor.left, appSetting.OffsetY+monitor.top, appSetting.Width, appSetting.Height)
 }
 
+/**
+ * Only restores the window if it's borderless
+ */
 func restoreWindow(window Window, appSetting AppSetting) {
+	if !isBorderless(window) {
+		return
+	}
 	fmt.Println("Restoring window:", window.title, window.exePath)
 	style := getWindowStyle(window.hwnd)
 	// Restore the border and title bar
