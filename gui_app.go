@@ -126,7 +126,7 @@ func buildApp(settings *Settings) fyne.App {
 		})
 	})
 
-	appName := widget.NewLabel("Go Borderless!")
+	appName := widget.NewLabel("Go Borderless! v" + fyneApp.Metadata().Version)
 	appName.TextStyle.Bold = true
 	appName.SizeName = "headingText"
 

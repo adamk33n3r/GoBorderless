@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
@@ -29,6 +31,17 @@ var (
 func entryTextToInt(s string) int32 {
 	intVal, _ := strconv.Atoi(s)
 	return int32(intVal)
+}
+
+func setViaReflect(obj any, fieldName string, val reflect.Value) {
+	rs := reflect.ValueOf(obj).Elem()
+	rf := rs.FieldByName(fieldName)
+	rf = reflect.NewAt(rf.Type(), unsafe.Pointer(rf.UnsafeAddr())).Elem()
+	rf.Set(val)
+}
+
+func setOnFocusChanged(entry *widget.Entry, onFocusChanged func(focused bool)) {
+	setViaReflect(entry, "onFocusChanged", reflect.ValueOf(onFocusChanged))
 }
 
 func getWindowsForSelect(allWindows []Window) []Window {
@@ -98,6 +111,11 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	xOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetX = entryTextToInt(s)
 	}
+	setOnFocusChanged(xOffsetText, func(focused bool) {
+		if focused {
+			xOffsetText.DoubleTapped(&fyne.PointEvent{})
+		}
+	})
 	xOffsetText.SetPlaceHolder("0")
 	if isNew {
 		xOffsetText.SetText("0")
@@ -111,6 +129,11 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	yOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetY = entryTextToInt(s)
 	}
+	setOnFocusChanged(yOffsetText, func(focused bool) {
+		if focused {
+			yOffsetText.DoubleTapped(&fyne.PointEvent{})
+		}
+	})
 	yOffsetText.SetPlaceHolder("0")
 	if isNew {
 		yOffsetText.SetText("0")
@@ -124,6 +147,11 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	widthText.OnChanged = func(s string) {
 		appSetting.Width = entryTextToInt(s)
 	}
+	setOnFocusChanged(widthText, func(focused bool) {
+		if focused {
+			widthText.DoubleTapped(&fyne.PointEvent{})
+		}
+	})
 	widthText.SetPlaceHolder("1920")
 	if isNew {
 		widthText.SetText(fmt.Sprintf("%d", selectedMonitor.width))
@@ -137,6 +165,11 @@ func makeAppSettingWindow(appSetting AppSetting, isNew bool, parent fyne.Window,
 	heightText.OnChanged = func(s string) {
 		appSetting.Height = entryTextToInt(s)
 	}
+	setOnFocusChanged(heightText, func(focused bool) {
+		if focused {
+			heightText.DoubleTapped(&fyne.PointEvent{})
+		}
+	})
 	heightText.SetPlaceHolder("1080")
 	if isNew {
 		heightText.SetText(fmt.Sprintf("%d", selectedMonitor.height))
