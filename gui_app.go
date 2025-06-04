@@ -35,10 +35,10 @@ func FirstError(args ...error) error {
 
 func intValidator(s string) error {
 	if s == "" {
-		return nil
+		return fmt.Errorf("invalid number")
 	}
 	if _, err := strconv.Atoi(s); err != nil {
-		return fmt.Errorf("invalid width")
+		return fmt.Errorf("invalid number")
 	}
 	return nil
 }
@@ -193,6 +193,7 @@ func buildApp(settings *Settings) fyne.App {
 	), mainWindow.Canvas()))
 	mainWindow.CenterOnScreen()
 	mainWindow.Resize(fyne.NewSquareSize(620))
+	mainWindow.SetFixedSize(true)
 
 	fmt.Println("Running app...")
 	mainWindow.Show()

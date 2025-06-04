@@ -55,8 +55,8 @@ func NewSelect[T SelectOption](options []T, changed func(T)) *Select[T] {
 	s.OnChanged = func(item string) {
 		index := slices.Index(s.Select.Options, item)
 		if index != -1 {
-			changed(s.Options[index])
 			s.Selected = &s.Options[index]
+			changed(s.Options[index])
 		} else {
 			// Doing this manually to avoid stack overflow/recursive call
 			s.Selected = nil

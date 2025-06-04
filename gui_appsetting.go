@@ -15,6 +15,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -26,7 +28,26 @@ var (
 	yOffsetText       *widget.Entry
 	widthText         *widget.Entry
 	heightText        *widget.Entry
+	confirmButton     *widget.Button
 )
+
+func isValid() bool {
+	return applicationSelect.Selected != nil &&
+		displaySelect.Selected != nil &&
+		matchType.Selected != "" &&
+		xOffsetText.Validate() == nil &&
+		yOffsetText.Validate() == nil &&
+		widthText.Validate() == nil &&
+		heightText.Validate() == nil
+}
+
+func setConfirmButtonState() {
+	if isValid() {
+		confirmButton.Enable()
+	} else {
+		confirmButton.Disable()
+	}
+}
 
 func entryTextToInt(s string) int32 {
 	intVal, _ := strconv.Atoi(s)
@@ -62,10 +83,33 @@ func getWindowsForSelect(allWindows []Window) []Window {
 	return copyOfWindows
 }
 
-func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.ConfirmDialog {
+func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.CustomDialog {
 	currentWindowsMutex.Lock()
 	windowsForSelect := getWindowsForSelect(currentWindows)
 	currentWindowsMutex.Unlock()
+
+	var appSettingDialog *dialog.CustomDialog
+	var windowSub rx.Subscription
+
+	confirmButton = widget.NewButtonWithIcon("Create", theme.ConfirmIcon(), func() {
+		if isNew {
+			windowSub.Unsubscribe()
+		}
+		appSettingDialog.Hide()
+		onClose(&appSetting)
+	})
+	confirmButton.Importance = widget.HighImportance
+	confirmButton.Disable()
+	cancelButton := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+		if isNew {
+			windowSub.Unsubscribe()
+		}
+		appSettingDialog.Hide()
+		onClose(nil)
+	})
+	if !isNew {
+		confirmButton.SetText("Save")
+	}
 
 	applicationSelect = ui.NewSelect(windowsForSelect, func(selected Window) {
 		if slices.Index(windowsForSelect, selected) == -1 {
@@ -75,6 +119,8 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		fmt.Println("Selected Application:", selected)
 		appSetting.WindowName = selected.title
 		appSetting.ExePath = selected.exePath
+
+		setConfirmButtonState()
 	})
 	applicationSelect.PlaceHolder = "Select Application"
 
@@ -89,12 +135,16 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	}
 	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
 		appSetting.Monitor = selected.number
+
+		setConfirmButtonState()
 	})
 	displaySelect.PlaceHolder = "Select Display"
 	displaySelect.SetSelectedIndex(monitorIdx)
 
 	matchType = widget.NewRadioGroup(matchTypes, func(selected string) {
 		appSetting.MatchType = GetMatchTypeFromString(selected)
+
+		setConfirmButtonState()
 	})
 	if isNew {
 		matchType.SetSelected(settings.Defaults.MatchType.String())
@@ -110,6 +160,8 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	xOffsetText.Validator = intValidator
 	xOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetX = entryTextToInt(s)
+
+		setConfirmButtonState()
 	}
 	setOnFocusChanged(xOffsetText, func(focused bool) {
 		if focused {
@@ -128,6 +180,8 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	yOffsetText.Validator = intValidator
 	yOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetY = entryTextToInt(s)
+
+		setConfirmButtonState()
 	}
 	setOnFocusChanged(yOffsetText, func(focused bool) {
 		if focused {
@@ -146,6 +200,8 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	widthText.Validator = intValidator
 	widthText.OnChanged = func(s string) {
 		appSetting.Width = entryTextToInt(s)
+
+		setConfirmButtonState()
 	}
 	setOnFocusChanged(widthText, func(focused bool) {
 		if focused {
@@ -164,6 +220,8 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	heightText.Validator = intValidator
 	heightText.OnChanged = func(s string) {
 		appSetting.Height = entryTextToInt(s)
+
+		setConfirmButtonState()
 	}
 	setOnFocusChanged(heightText, func(focused bool) {
 		if focused {
@@ -189,40 +247,15 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		),
 	)
 
-	// Layout
-	content := container.NewVBox(
-		// centeredLabel,
-		// application,
-		displaySelect,
-		widget.NewLabel("Match Type"),
-		matchType,
-		textGrid,
-		// form,
-		// testBtn,
-	)
-	if isNew {
-		content.Objects = append([]fyne.CanvasObject{applicationSelect}, content.Objects...)
-	}
-
-	var windowSub rx.Subscription
 	if isNew {
 		fmt.Println("subscribing to windows observable")
 		// TODO: make it work like subject where it outputs last received data on subscription
 
 		windowSub = windowObs.Subscribe(func(windows []Window) {
-			// fmt.Println("windows updated")
 			if len(windows) == 0 {
-				// fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-				// fmt.Println("windows array is empty")
 				// This is probably a fluke, so let's skip it
 				return
 			}
-			// for _, win := range windows {
-			// 	if win.title == "NoMoreBorderGo" {
-			// 		rect := getWindowRect(win.hwnd)
-			// 		fmt.Println("NoMoreBorderGo window rect:", rect)
-			// 	}
-			// }
 			fyne.Do(func() {
 				windowsForSelect := getWindowsForSelect(windows)
 				applicationSelect.SetOptions(windowsForSelect)
@@ -235,22 +268,22 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		})
 	}
 
+	content := container.NewVBox(
+		displaySelect,
+		widget.NewLabel("Match Type"),
+		matchType,
+		textGrid,
+		widget.NewLabel(""), // spacer
+		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),
+	)
 	if isNew {
-		return dialog.NewCustomConfirm("New App Config", "Create", "Cancel", content, func(saved bool) {
-			windowSub.Unsubscribe()
-			if saved {
-				onClose(&appSetting)
-			} else {
-				onClose(nil)
-			}
-		}, parent)
-	} else {
-		return dialog.NewCustomConfirm(appSetting.Display(), "Save", "Cancel", content, func(saved bool) {
-			if saved {
-				onClose(&appSetting)
-			} else {
-				onClose(nil)
-			}
-		}, parent)
+		content.Objects = append([]fyne.CanvasObject{applicationSelect}, content.Objects...)
 	}
+
+	dialogName := "New App Config"
+	if !isNew {
+		dialogName = appSetting.Display()
+	}
+	appSettingDialog = dialog.NewCustomWithoutButtons(dialogName, content, parent)
+	return appSettingDialog
 }

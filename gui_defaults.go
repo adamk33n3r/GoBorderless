@@ -91,10 +91,10 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 			container.NewVBox(defaultHeightLabel, defaultHeight),
 		),
 	)
-	return container.NewVBox(
+	return container.NewPadded(container.NewVBox(
 		defaultDisplay,
 		defaultMatchTypeLabel,
 		defaultMatchType,
 		defaultsGrid,
-	)
+	))
 }
