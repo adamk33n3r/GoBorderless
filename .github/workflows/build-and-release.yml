@@ -22,7 +22,7 @@ jobs:
 
       - name: Create changelog
         run: |
-          git log $(git describe --tags --abbrev=0 @^)..@ --pretty=%B > CHANGELOG.md
+          git log "$(git describe --tags --abbrev=0 HEAD^)..HEAD" --pretty=%B > CHANGELOG.md
 
       - name: Set up Go
         uses: actions/setup-go@v5
