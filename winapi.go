@@ -22,6 +22,7 @@ var (
 	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
+	procEnumWindows          = user32.NewProc("EnumWindows")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
@@ -70,27 +71,27 @@ func getProcessExecutable(pid uint32) (string, error) {
 	return exePath, nil
 }
 
-func moveWindow(hwnd uintptr, x, y, width, height int32) {
-	win.MoveWindow(win.HWND(hwnd), x, y, width, height, true)
+func moveWindow(hwnd win.HWND, x, y, width, height int32) {
+	win.MoveWindow(hwnd, x, y, width, height, true)
 }
 
-func setWindowPos(hwnd uintptr, x, y, width, height int32) {
-	win.SetWindowPos(win.HWND(hwnd), 0, x, y, width, height, win.SWP_NOZORDER)
+func setWindowPos(hwnd win.HWND, x, y, width, height int32) {
+	win.SetWindowPos(hwnd, 0, x, y, width, height, win.SWP_NOZORDER)
 }
 
-func getWindowRect(hwnd uintptr) win.RECT {
+func getWindowRect(hwnd win.HWND) win.RECT {
 	rect := win.RECT{}
-	win.GetWindowRect(win.HWND(hwnd), &rect)
+	win.GetWindowRect(hwnd, &rect)
 	return rect
 }
 
-func getWindowStyle(hwnd uintptr) int32 {
-	return win.GetWindowLong(win.HWND(hwnd), win.GWL_STYLE)
+func getWindowStyle(hwnd win.HWND) int32 {
+	return win.GetWindowLong(hwnd, win.GWL_STYLE)
 }
 
-func setWindowStyle(hwnd uintptr, style int32) {
-	win.SetWindowLong(win.HWND(hwnd), win.GWL_STYLE, style)
-	win.SetWindowPos(win.HWND(hwnd), 0, 0, 0, 0, 0, win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_FRAMECHANGED)
+func setWindowStyle(hwnd win.HWND, style int32) {
+	win.SetWindowLong(hwnd, win.GWL_STYLE, style)
+	win.SetWindowPos(hwnd, 0, 0, 0, 0, 0, win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_FRAMECHANGED)
 }
 
 type Monitor struct {
