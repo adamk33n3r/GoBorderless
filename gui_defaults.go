@@ -20,7 +20,7 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 	}
 	setOnFocusChanged(defaultXOffset, func(focused bool) {
 		if focused {
-			xOffsetText.DoubleTapped(&fyne.PointEvent{})
+			defaultXOffset.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
 
@@ -34,7 +34,7 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 	}
 	setOnFocusChanged(defaultYOffset, func(focused bool) {
 		if focused {
-			yOffsetText.DoubleTapped(&fyne.PointEvent{})
+			defaultYOffset.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
 
@@ -48,7 +48,7 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 	}
 	setOnFocusChanged(defaultWidth, func(focused bool) {
 		if focused {
-			widthText.DoubleTapped(&fyne.PointEvent{})
+			defaultWidth.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
 
@@ -62,7 +62,7 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 	}
 	setOnFocusChanged(defaultHeight, func(focused bool) {
 		if focused {
-			heightText.DoubleTapped(&fyne.PointEvent{})
+			defaultHeight.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
 
