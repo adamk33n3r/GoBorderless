@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/lxn/win"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -191,6 +192,16 @@ func main() {
 	if err != nil {
 		fmt.Println("Error loading settings:", err)
 		backUpSettingsFile()
+	}
+
+	_, err = createMutex(APP_NAME + "_InstanceMutex")
+	if err == windows.ERROR_ALREADY_EXISTS {
+		fmt.Println("Another instance of the app is already running, bringing other instance to foreground.")
+		if appNamePtr, err := windows.UTF16PtrFromString(APP_NAME); err == nil {
+			existingWin := win.FindWindow(nil, appNamePtr)
+			win.SetForegroundWindow(existingWin)
+		}
+		return
 	}
 
 	monitors = getMonitors()

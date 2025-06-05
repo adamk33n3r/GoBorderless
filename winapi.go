@@ -22,7 +22,6 @@ var (
 	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
-	procEnumWindows          = user32.NewProc("EnumWindows")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
@@ -143,3 +142,25 @@ func getDocumentsFolder() string {
 	defer windows.CoTaskMemFree(unsafe.Pointer(buf))                //nolint:govet
 	return windows.UTF16PtrToString((*uint16)(unsafe.Pointer(buf))) //nolint:govet
 }
+
+func createMutex(name string) (windows.Handle, error) {
+	if namePtr, err := windows.UTF16PtrFromString(name); err == nil {
+		return windows.CreateMutex(nil, false, namePtr)
+	}
+	return windows.Handle(0), fmt.Errorf("failed to create mutex")
+}
+
+func openMutex(name string) (windows.Handle, error) {
+	if namePtr, err := windows.UTF16PtrFromString(name); err == nil {
+		return windows.OpenMutex(windows.SYNCHRONIZE, false, namePtr)
+	}
+	return windows.Handle(0), fmt.Errorf("failed to open mutex")
+}
+
+func closeMutex(mutex windows.Handle) error {
+	return windows.CloseHandle(mutex)
+}
+
+// func waitForSingleObject(mutex *windows.Mutex) error {
+// 	return windows.WaitForSingleObject(windows.Handle(mutex), windows.INFINITE)
+// }
