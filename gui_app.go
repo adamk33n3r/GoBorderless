@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/adamk33n3r/GoBorderless/res"
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
 	fynetooltip "github.com/dweymouth/fyne-tooltip"
@@ -55,7 +54,6 @@ func launchAppSettingDialog(parent fyne.Window, new bool, settings *Settings, ap
 
 func buildApp(settings *Settings) fyne.App {
 	fyneApp := app.New()
-	fyneApp.SetIcon(res.ResIconPng)
 	before := time.Now()
 	mainWindow := fyneApp.NewWindow(APP_NAME)
 	fmt.Println("NewWindow took:", time.Since(before))
