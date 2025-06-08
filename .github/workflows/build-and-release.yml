@@ -30,7 +30,11 @@ jobs:
           go-version: '1.24'
 
       - name : Install Fyne
-        run: go install fyne.io/tools/cmd/fyne@latest
+        run: |
+          git clone https://github.com/adamk33n3r/fyne-tools.git
+          cd fyne-tools
+          go install ./cmd/fyne
+          cd ..
 
       - name: Build
         run: fyne package --release
