@@ -126,8 +126,8 @@ func NewAppSettingRow() *AppSettingRow {
 	row := &AppSettingRow{
 		Title:      label,
 		AutoApply:  widget.NewCheck("Auto Apply", func(checked bool) {}),
-		ApplyBtn:   ttwidget.NewButtonWithIcon("", theme.ContentRedoIcon(), func() {}),
-		RestoreBtn: ttwidget.NewButtonWithIcon("", theme.ContentUndoIcon(), func() {}),
+		ApplyBtn:   ttwidget.NewButtonWithIcon("", theme.ViewFullScreenIcon(), func() {}),
+		RestoreBtn: ttwidget.NewButtonWithIcon("", theme.ViewRestoreIcon(), func() {}),
 		EditBtn:    ttwidget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {}),
 		DeleteBtn:  ttwidget.NewButtonWithIcon("", theme.DeleteIcon(), func() {}),
 	}

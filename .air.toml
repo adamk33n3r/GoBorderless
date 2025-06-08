@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "tmp\\GoBorderless.exe"
-  cmd = "go build -o ./tmp/GoBorderless.exe ."
+  cmd = "fyne package --exe ./tmp/GoBorderless.exe"
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
   exclude_file = ["fyne_metadata_init.go"]
