@@ -115,6 +115,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		if slices.Index(windowsForSelect, selected) == -1 {
 			fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
 			applicationSelect.ClearSelected()
+			return
 		}
 		fmt.Println("Selected Application:", selected)
 		appSetting.WindowName = selected.title
@@ -257,7 +258,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 				return
 			}
 			fyne.Do(func() {
-				windowsForSelect := getWindowsForSelect(windows)
+				windowsForSelect = getWindowsForSelect(windows)
 				applicationSelect.SetOptions(windowsForSelect)
 
 				if applicationSelect.Selected != nil && slices.Index(windowsForSelect, *applicationSelect.Selected) == -1 {
