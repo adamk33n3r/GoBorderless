@@ -26,8 +26,8 @@ GoBorderless is a modern, open-source Windows application that allows users to e
 
 ## Screenshots
 
-![App](/screenshot-app.png)
-![Config](/screenshot-config.png)
+![App](/assets/screenshot-app.png)
+![Config](/assets/screenshot-config.png)
 
 ## Download
 

@@ -2,9 +2,11 @@ package main
 
 import (
 	"os"
+	"os/exec"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/sys/windows/registry"
@@ -50,24 +52,33 @@ func buildSettingsTab(settings *Settings) *fyne.Container {
 	})
 	startMinimized.SetChecked(settings.StartMinimized)
 
-	theme := widget.NewSelect([]string{"System", "Light", "Dark"}, func(selected string) {
+	themeSelect := widget.NewSelect([]string{"System", "Light", "Dark"}, func(selected string) {
 		settings.Theme = selected
 		settings.Save()
 		setTheme(selected)
 	})
-	theme.SetSelected(settings.Theme)
+	themeSelect.SetSelected(settings.Theme)
 
 	checks := container.NewGridWithColumns(2,
 		container.NewVBox(startWithWindowsCheck, minimizeToTray),
 		container.NewVBox(startMinimized, closeToTray),
 	)
+
+	showSettingsFile := widget.NewButtonWithIcon("Show Settings File", theme.FolderOpenIcon(), func() {
+		println(settingsPath)
+		cmd := exec.Command("explorer", "/select,", settingsPath)
+		println(cmd.String())
+		cmd.Run()
+	})
 	form := widget.NewForm(
-		widget.NewFormItem("Theme:", theme),
+		widget.NewFormItem("Theme:", themeSelect),
 		widget.NewFormItem("", checks),
 	)
 
 	return container.NewVBox(
 		form,
+		layout.NewSpacer(),
+		showSettingsFile,
 	)
 }
 
