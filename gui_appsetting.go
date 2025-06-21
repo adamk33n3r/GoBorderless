@@ -31,18 +31,18 @@ var (
 	confirmButton     *widget.Button
 )
 
-func isValid() bool {
-	return applicationSelect.Selected != nil &&
-		displaySelect.Selected != nil &&
-		matchType.Selected != "" &&
-		xOffsetText.Validate() == nil &&
-		yOffsetText.Validate() == nil &&
-		widthText.Validate() == nil &&
-		heightText.Validate() == nil
+func isValid(isNew bool) bool {
+	return (!isNew || (applicationSelect != nil && applicationSelect.Selected != nil)) &&
+		displaySelect != nil && displaySelect.Selected != nil &&
+		matchType != nil && matchType.Selected != "" &&
+		xOffsetText != nil && xOffsetText.Validate() == nil &&
+		yOffsetText != nil && yOffsetText.Validate() == nil &&
+		widthText != nil && widthText.Validate() == nil &&
+		heightText != nil && heightText.Validate() == nil
 }
 
-func setConfirmButtonState() {
-	if isValid() {
+func setConfirmButtonState(isNew bool) {
+	if isValid(isNew) {
 		confirmButton.Enable()
 	} else {
 		confirmButton.Disable()
@@ -120,7 +120,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		appSetting.WindowName = selected.title
 		appSetting.ExePath = selected.exePath
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	})
 	applicationSelect.PlaceHolder = "Select Application"
 
@@ -136,7 +136,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	displaySelect = ui.NewSelect(monitors, func(selected Monitor) {
 		appSetting.Monitor = selected.number
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	})
 	displaySelect.PlaceHolder = "Select Display"
 	displaySelect.SetSelectedIndex(monitorIdx)
@@ -144,7 +144,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	matchType = widget.NewRadioGroup(matchTypes, func(selected string) {
 		appSetting.MatchType = GetMatchTypeFromString(selected)
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	})
 	if isNew {
 		matchType.SetSelected(settings.Defaults.MatchType.String())
@@ -161,7 +161,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	xOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetX = entryTextToInt(s)
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	}
 	setOnFocusChanged(xOffsetText, func(focused bool) {
 		if focused {
@@ -181,7 +181,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	yOffsetText.OnChanged = func(s string) {
 		appSetting.OffsetY = entryTextToInt(s)
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	}
 	setOnFocusChanged(yOffsetText, func(focused bool) {
 		if focused {
@@ -201,7 +201,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	widthText.OnChanged = func(s string) {
 		appSetting.Width = entryTextToInt(s)
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	}
 	setOnFocusChanged(widthText, func(focused bool) {
 		if focused {
@@ -221,7 +221,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	heightText.OnChanged = func(s string) {
 		appSetting.Height = entryTextToInt(s)
 
-		setConfirmButtonState()
+		setConfirmButtonState(isNew)
 	}
 	setOnFocusChanged(heightText, func(focused bool) {
 		if focused {
