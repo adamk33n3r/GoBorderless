@@ -24,6 +24,13 @@ GoBorderless is a modern, open-source Windows application that allows users to e
 - 🛠️ **Written in Go with Fyne**  
   Clean, fast, and cross-platform capable core built using the [Fyne](https://fyne.io/) GUI toolkit.
 
+## Instructions
+1. Click `+ Create New app Config`
+2. Select your application from the dropdown. This list is filtered to only show windowed applications. If your application is not showing up, make sure it is not fullscreen or otherwise missing window decoration. If you still cannot get it to show up, please create an [Issue](https://github.com/adamk33n3r/GoBorderless/issues/new) and we can look into it.
+3. Fill out any settings you wish to set like match type, position, and size.
+4. Click Create
+5. Your application config will now be in the list and you can apply, restore, or turn on auto-apply (will check to apply the borderless settings once a second)
+
 ## Screenshots
 
 ![App](/assets/screenshot-app.png)
