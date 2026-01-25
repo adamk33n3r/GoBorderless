@@ -21,14 +21,15 @@ import (
 )
 
 var (
-	applicationSelect *ui.Select[Window]
-	displaySelect     *ui.Select[Monitor]
-	matchType         *widget.RadioGroup
-	xOffsetText       *widget.Entry
-	yOffsetText       *widget.Entry
-	widthText         *widget.Entry
-	heightText        *widget.Entry
-	confirmButton     *widget.Button
+	applicationSelect  *ui.Select[Window]
+	filterApplications *widget.Check
+	displaySelect      *ui.Select[Monitor]
+	matchType          *widget.RadioGroup
+	xOffsetText        *widget.Entry
+	yOffsetText        *widget.Entry
+	widthText          *widget.Entry
+	heightText         *widget.Entry
+	confirmButton      *widget.Button
 )
 
 func isValid(isNew bool) bool {
@@ -66,28 +67,28 @@ func setOnFocusChanged(entry *widget.Entry, onFocusChanged func(focused bool)) {
 }
 
 func getWindowsForSelect(allWindows []Window) []Window {
-	copyOfWindows := make([]Window, 0, len(allWindows))
+	filteredWindows := make([]Window, 0, len(allWindows))
 	// Filter out windows that don't have normal borders cause they're probably not "real" windows
 	// This will also filter out windows that we've already removed borders from
 	// Perhaps we should also check the list of existing configs?
-	for _, window := range allWindows {
-		style := getWindowStyle(window.hwnd)
-		if style&win.WS_CAPTION > 0 &&
-			((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0) {
-			copyOfWindows = append(copyOfWindows, window)
+	if filterApplications.Checked {
+		for _, window := range allWindows {
+			style := getWindowStyle(window.hwnd)
+			if style&win.WS_CAPTION > 0 &&
+				((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0) {
+				filteredWindows = append(filteredWindows, window)
+			}
 		}
+	} else {
+		filteredWindows = append(filteredWindows, allWindows...)
 	}
-	slices.SortFunc(copyOfWindows, func(a Window, b Window) int {
+	slices.SortFunc(filteredWindows, func(a Window, b Window) int {
 		return strings.Compare(strings.ToLower(a.String()), strings.ToLower(b.String()))
 	})
-	return copyOfWindows
+	return filteredWindows
 }
 
 func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.CustomDialog {
-	currentWindowsMutex.Lock()
-	windowsForSelect := getWindowsForSelect(currentWindows)
-	currentWindowsMutex.Unlock()
-
 	var appSettingDialog *dialog.CustomDialog
 	var windowSub rx.Subscription
 
@@ -111,6 +112,14 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		confirmButton.SetText("Save")
 	}
 
+	filterApplications = widget.NewCheck("Filter out borderless applications", func(checked bool) {
+		applicationSelect.SetOptions(getWindowsForSelect(currentWindows))
+	})
+
+	currentWindowsMutex.Lock()
+	windowsForSelect := getWindowsForSelect(currentWindows)
+	currentWindowsMutex.Unlock()
+
 	applicationSelect = ui.NewSelect(windowsForSelect, func(selected Window) {
 		if slices.Index(windowsForSelect, selected) == -1 {
 			fmt.Println("Selected application no longer exists in the updated window list, resetting selection.")
@@ -124,6 +133,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		setConfirmButtonState(isNew)
 	})
 	applicationSelect.PlaceHolder = "Select Application"
+	filterApplications.SetChecked(true)
 
 	monitorIdx := appSetting.Monitor - 1
 	if isNew {
@@ -278,7 +288,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),
 	)
 	if isNew {
-		content.Objects = append([]fyne.CanvasObject{applicationSelect}, content.Objects...)
+		content.Objects = append([]fyne.CanvasObject{applicationSelect, filterApplications}, content.Objects...)
 	}
 
 	dialogName := "New App Config"
