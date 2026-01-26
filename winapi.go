@@ -43,31 +43,20 @@ func getWindowTitle(hwnd uintptr) string {
 	return windows.UTF16ToString(textBuf)
 }
 
-func getProcessName(pid uint32) (string, error) {
+func getProcessPath(pid uint32) (string, error) {
 	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION|windows.PROCESS_VM_READ, false, pid)
 	if err != nil {
 		return "", err
 	}
 	defer windows.CloseHandle(handle) // Ensure handle is closed after use
-	processNameBuf := make([]uint16, maxPath)
-	err = windows.GetModuleBaseName(handle, 0, &processNameBuf[0], maxPath)
+	processPathBuf := make([]uint16, maxPath)
+	processPathBufLen := uint32(maxPath)
+	err = windows.QueryFullProcessImageName(handle, 0, &processPathBuf[0], &processPathBufLen)
 	if err != nil {
 		return "", err
 	}
-	processName := windows.UTF16ToString(processNameBuf)
-	return processName, nil
-}
-
-func getProcessExecutable(pid uint32) (string, error) {
-	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION|windows.PROCESS_VM_READ, false, pid)
-	if handle == 0 {
-		return "", err
-	}
-	defer windows.CloseHandle(handle) // Ensure handle is closed after use
-	exeBuf := make([]uint16, maxPath)
-	windows.GetModuleFileNameEx(handle, 0, &exeBuf[0], maxPath)
-	exePath := windows.UTF16ToString(exeBuf)
-	return exePath, nil
+	processPath := windows.UTF16ToString(processPathBuf)
+	return processPath, nil
 }
 
 func moveWindow(hwnd win.HWND, x, y, width, height int32) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 	"unsafe"
@@ -89,27 +90,24 @@ func getWindowData(hwnds []win.HWND) []Window {
 			continue
 		}
 
-		// exePath, err := getProcessExecutable(getProcessID(hwnd))
-		// if err != nil {
-		// 	return 1
-		// }
-
 		var pid uint32
 		win.GetWindowThreadProcessId(win.HWND(hwnd), &pid)
-		pname, err := getProcessName(pid)
+		processPath, err := getProcessPath(pid)
 		if err != nil {
 			continue
 		}
 
+		processName := filepath.Base(processPath)
+
 		// Filter out some stuff you probably never want to see
-		if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(pname)[:len(pname)-4]) {
+		if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.TrimSuffix(strings.ToLower(processName), filepath.Ext(processName))) {
 			continue
 		}
 		if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(title)) {
 			continue
 		}
 
-		windows = append(windows, Window{hwnd: hwnd, title: title, exePath: pname})
+		windows = append(windows, Window{hwnd: hwnd, title: title, exePath: processPath})
 	}
 	return windows
 }
