@@ -1,19 +1,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"os"
+	"os/exec"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
+	"github.com/creativeprojects/go-selfupdate"
 	fynetooltip "github.com/dweymouth/fyne-tooltip"
 	"github.com/lxn/win"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
@@ -52,11 +58,100 @@ func launchAppSettingDialog(parent fyne.Window, new bool, settings *Settings, ap
 	dialog.Show()
 }
 
+func checkUpdate(app fyne.App, win fyne.Window) {
+	selfupdate.SetLogger(log.New(os.Stdout, "", 0))
+	updater, err := selfupdate.NewUpdater(selfupdate.Config{
+		Filters: []string{"goborderless.exe"},
+	})
+	if err != nil {
+		fmt.Println("Updater error:", err)
+		return
+	}
+
+	latest, found, err := updater.DetectLatest(context.Background(), selfupdate.ParseSlug("adamk33n3r/GoBorderless"))
+	if err != nil {
+		fmt.Println("Update check failed:", err)
+		return
+	}
+
+	if !found || latest.LessOrEqual(app.Metadata().Version) {
+		fmt.Println("App is up to date.")
+		return
+	}
+
+	dialog.ShowConfirm(
+		"Update Available",
+		fmt.Sprintf("A new version (v%s) is available. Would you like to update now?", latest.Version()),
+		func(confirm bool) {
+			if confirm {
+				runUpdate(win, updater, latest)
+			}
+		}, win)
+
+}
+
+func runUpdate(win fyne.Window, updater *selfupdate.Updater, latest *selfupdate.Release) {
+	progress := dialog.NewCustomWithoutButtons("Updating", widget.NewLabel("Downloading and applying update..."), win)
+	progress.Show()
+
+	fyne.Do(func() {
+		exe, err := selfupdate.ExecutablePath()
+		if err != nil {
+			fmt.Println("could not locate executable path")
+			progress.Hide()
+			dialog.ShowError(err, win)
+			return
+		}
+
+		if err := updater.UpdateTo(context.Background(), latest, exe); err != nil {
+			progress.Hide()
+			dialog.ShowError(err, win)
+			return
+		}
+
+		progress.Hide()
+
+		restart := widget.NewButtonWithIcon("Restart", theme.ConfirmIcon(), func() {
+			restartApp(win)
+		})
+		restart.Importance = widget.HighImportance
+		content := container.NewVBox(
+			widget.NewLabel("Update applied, please restart"),
+			restart,
+		)
+		dialog.ShowCustomWithoutButtons("Update Successful", content, win)
+	})
+}
+
+func restartApp(win fyne.Window) {
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Println("could not locate executable path")
+		return
+	}
+
+	cmd := exec.Command(self)
+
+	// Close mutex so that the new instance will open
+	closeMutex(MUTEX)
+
+	err = cmd.Start()
+	if err != nil {
+		dialog.ShowError(err, win)
+		return
+	}
+	os.Exit(0)
+}
+
 func buildApp(settings *Settings) fyne.App {
 	fyneApp := app.New()
 	before := time.Now()
 	mainWindow := fyneApp.NewWindow(APP_NAME)
 	fmt.Println("NewWindow took:", time.Since(before))
+
+	fyneApp.Lifecycle().SetOnStarted(func() {
+		go checkUpdate(fyneApp, mainWindow)
+	})
 
 	windowObs.Subscribe(func(windows []Window) {
 		// fmt.Println("MainApp: windows updated")

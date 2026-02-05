@@ -71,6 +71,8 @@ var ALWAYS_HIDDEN_PROCESSESS = []string{
 	"uplay",
 }
 
+var MUTEX windows.Handle
+
 func getWindowData(hwnds []win.HWND) []Window {
 	windows := make([]Window, 0)
 	for _, hwnd := range hwnds {
@@ -192,7 +194,7 @@ func main() {
 		backUpSettingsFile()
 	}
 
-	_, err = createMutex(APP_NAME + "_InstanceMutex")
+	MUTEX, err = createMutex(APP_NAME + "_InstanceMutex")
 	if err == windows.ERROR_ALREADY_EXISTS {
 		fmt.Println("Another instance of the app is already running, bringing other instance to foreground.")
 		if appNamePtr, err := windows.UTF16PtrFromString(APP_NAME); err == nil {
