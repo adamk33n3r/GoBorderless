@@ -14,6 +14,22 @@ const (
 	maxPath = 260 // Maximum path length for Windows file paths
 )
 
+const (
+	ABM_GETSTATE = 0x00000004
+	ABM_SETSTATE = 0x0000000A
+	ABS_AUTOHIDE = 0x01
+	ABS_ALWAYSONTOP = 0x02
+)
+
+type APPBARDATA struct {
+	cbSize           uint32
+	hWnd             uintptr
+	uCallbackMessage uint32
+	uEdge            uint32
+	rc               win.RECT
+	lParam           uintptr
+}
+
 var (
 	user32  = windows.NewLazySystemDLL("user32.dll")
 	shell32 = windows.NewLazySystemDLL("shell32.dll")
@@ -21,7 +37,10 @@ var (
 	procGetWindowTextW       = user32.NewProc("GetWindowTextW")
 	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
+	procGetForegroundWindow  = user32.NewProc("GetForegroundWindow")
+	procFindWindowW          = user32.NewProc("FindWindowW")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
+	procSHAppBarMessage      = shell32.NewProc("SHAppBarMessage")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
@@ -153,3 +172,38 @@ func closeMutex(mutex windows.Handle) error {
 // func waitForSingleObject(mutex *windows.Mutex) error {
 // 	return windows.WaitForSingleObject(windows.Handle(mutex), windows.INFINITE)
 // }
+
+func getForegroundWindow() win.HWND {
+	ret, _, _ := procGetForegroundWindow.Call()
+	return win.HWND(ret)
+}
+
+func findWindowByClass(className string) uintptr {
+	classPtr, _ := windows.UTF16PtrFromString(className)
+	ret, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(classPtr)), 0)
+	return ret
+}
+
+func getTaskbarAutoHide() bool {
+	taskbarHwnd := findWindowByClass("Shell_TrayWnd")
+	abd := APPBARDATA{
+		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
+		hWnd:   taskbarHwnd,
+	}
+	ret, _, _ := procSHAppBarMessage.Call(ABM_GETSTATE, uintptr(unsafe.Pointer(&abd)))
+	return ret&ABS_AUTOHIDE != 0
+}
+
+func setTaskbarAutoHide(hide bool) {
+	taskbarHwnd := findWindowByClass("Shell_TrayWnd")
+	abd := APPBARDATA{
+		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
+		hWnd:   taskbarHwnd,
+	}
+	if hide {
+		abd.lParam = ABS_AUTOHIDE
+	} else {
+		abd.lParam = ABS_ALWAYSONTOP
+	}
+	procSHAppBarMessage.Call(ABM_SETSTATE, uintptr(unsafe.Pointer(&abd)))
+}

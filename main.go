@@ -162,6 +162,10 @@ func scanWindows(settings *Settings) {
 		windowData := getWindowData(allWindows)
 
 		chWindowList <- windowData // Update global window list
+
+		foregroundHwnd := getForegroundWindow()
+		shouldHideTaskbar := false
+
 		for appSettingIdx, appSetting := range settings.Apps {
 			if !appSetting.AutoApply {
 				continue
@@ -178,9 +182,31 @@ func scanWindows(settings *Settings) {
 						settings.Save()
 					}
 					makeBorderless(win, appSetting)
+					// Check if this app is in the foreground and wants taskbar hidden
+					if appSetting.HideTaskbar && win.hwnd == foregroundHwnd {
+						shouldHideTaskbar = true
+					}
 					break
 				}
 			}
+		}
+
+		// Also check non-auto-apply apps that are already borderless and in foreground
+		for _, appSetting := range settings.Apps {
+			if !appSetting.HideTaskbar {
+				continue
+			}
+			for _, win := range windowData {
+				if matchWindow(win, appSetting) && isBorderless(win) && win.hwnd == foregroundHwnd {
+					shouldHideTaskbar = true
+				}
+			}
+		}
+
+		if shouldHideTaskbar {
+			hideTaskbar()
+		} else {
+			restoreTaskbar()
 		}
 
 		time.Sleep(time.Second * 1) // Sleep for 1 second before next scan
@@ -217,6 +243,8 @@ func main() {
 	}
 
 	settings.Save()
+	// Save the user's original taskbar state before we potentially modify it
+	saveTaskbarState()
 	fmt.Println(settings)
 	for _, mon := range monitors {
 		fmt.Printf("Monitor %d\n", mon.number)

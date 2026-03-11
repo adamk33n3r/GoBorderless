@@ -25,6 +25,7 @@ var (
 	filterApplications *widget.Check
 	displaySelect      *ui.Select[Monitor]
 	matchType          *widget.RadioGroup
+	hideTaskbarCheck   *widget.Check
 	xOffsetText        *widget.Entry
 	yOffsetText        *widget.Entry
 	widthText          *widget.Entry
@@ -165,6 +166,15 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 	matchType.Horizontal = true
 	matchType.Required = true
 
+	hideTaskbarCheck = widget.NewCheck("Hide Taskbar when active", func(checked bool) {
+		appSetting.HideTaskbar = checked
+	})
+	if isNew {
+		hideTaskbarCheck.SetChecked(settings.Defaults.HideTaskbar)
+	} else {
+		hideTaskbarCheck.SetChecked(appSetting.HideTaskbar)
+	}
+
 	// Textboxes with labels
 	xOffsetLabel := widget.NewLabel("X Offset:")
 	xOffsetText = widget.NewEntry()
@@ -283,6 +293,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		displaySelect,
 		widget.NewLabel("Match Type"),
 		matchType,
+		hideTaskbarCheck,
 		textGrid,
 		widget.NewLabel(""), // spacer
 		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),

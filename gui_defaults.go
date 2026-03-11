@@ -81,6 +81,12 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 	defaultMatchType.Horizontal = true
 	defaultMatchType.Required = true
 
+	defaultHideTaskbar := widget.NewCheck("Hide Taskbar when active", func(checked bool) {
+		settings.Defaults.HideTaskbar = checked
+		settings.Save()
+	})
+	defaultHideTaskbar.SetChecked(settings.Defaults.HideTaskbar)
+
 	defaultsGrid := container.NewGridWithRows(2,
 		container.NewGridWithColumns(2,
 			container.NewVBox(defaultXOffsetLabel, defaultXOffset),
@@ -95,6 +101,7 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 		defaultDisplay,
 		defaultMatchTypeLabel,
 		defaultMatchType,
+		defaultHideTaskbar,
 		defaultsGrid,
 	))
 }
