@@ -178,32 +178,41 @@ func getForegroundWindow() win.HWND {
 	return win.HWND(ret)
 }
 
-func findWindowByClass(className string) uintptr {
-	classPtr, _ := windows.UTF16PtrFromString(className)
+func findWindowByClass(className string) (uintptr, error) {
+	classPtr, err := windows.UTF16PtrFromString(className)
+	if err != nil {
+		return 0, fmt.Errorf("findWindowByClass: %w", err)
+	}
 	ret, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(classPtr)), 0)
-	return ret
+	if ret == 0 {
+		return 0, fmt.Errorf("findWindowByClass: window %q not found", className)
+	}
+	return ret, nil
 }
 
-func getTaskbarAutoHide() bool {
-	taskbarHwnd := findWindowByClass("Shell_TrayWnd")
+func getTaskbarAutoHide() (uint32, error) {
+	taskbarHwnd, err := findWindowByClass("Shell_TrayWnd")
+	if err != nil {
+		return 0, fmt.Errorf("getTaskbarAutoHide: %w", err)
+	}
 	abd := APPBARDATA{
 		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
 		hWnd:   taskbarHwnd,
 	}
 	ret, _, _ := procSHAppBarMessage.Call(ABM_GETSTATE, uintptr(unsafe.Pointer(&abd)))
-	return ret&ABS_AUTOHIDE != 0
+	return uint32(ret), nil
 }
 
-func setTaskbarAutoHide(hide bool) {
-	taskbarHwnd := findWindowByClass("Shell_TrayWnd")
+func setTaskbarAutoHide(state uint32) error {
+	taskbarHwnd, err := findWindowByClass("Shell_TrayWnd")
+	if err != nil {
+		return fmt.Errorf("setTaskbarAutoHide: %w", err)
+	}
 	abd := APPBARDATA{
 		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
 		hWnd:   taskbarHwnd,
-	}
-	if hide {
-		abd.lParam = ABS_AUTOHIDE
-	} else {
-		abd.lParam = ABS_ALWAYSONTOP
+		lParam: uintptr(state),
 	}
 	procSHAppBarMessage.Call(ABM_SETSTATE, uintptr(unsafe.Pointer(&abd)))
+	return nil
 }

@@ -9,7 +9,7 @@ import (
 
 var (
 	taskbarMu              sync.Mutex
-	taskbarOriginalState   bool
+	taskbarOriginalState   uint32
 	taskbarStateSaved      bool
 	taskbarHiddenByApp     bool
 )
@@ -52,7 +52,12 @@ func saveTaskbarState() {
 	taskbarMu.Lock()
 	defer taskbarMu.Unlock()
 	if !taskbarStateSaved {
-		taskbarOriginalState = getTaskbarAutoHide()
+		state, err := getTaskbarAutoHide()
+		if err != nil {
+			fmt.Println("saveTaskbarState:", err)
+			return
+		}
+		taskbarOriginalState = state
 		taskbarStateSaved = true
 	}
 }
@@ -62,10 +67,18 @@ func hideTaskbar() {
 	defer taskbarMu.Unlock()
 	if !taskbarHiddenByApp {
 		if !taskbarStateSaved {
-			taskbarOriginalState = getTaskbarAutoHide()
+			state, err := getTaskbarAutoHide()
+			if err != nil {
+				fmt.Println("hideTaskbar:", err)
+				return
+			}
+			taskbarOriginalState = state
 			taskbarStateSaved = true
 		}
-		setTaskbarAutoHide(true)
+		if err := setTaskbarAutoHide(ABS_AUTOHIDE); err != nil {
+			fmt.Println("hideTaskbar:", err)
+			return
+		}
 		taskbarHiddenByApp = true
 	}
 }
@@ -74,7 +87,9 @@ func restoreTaskbar() {
 	taskbarMu.Lock()
 	defer taskbarMu.Unlock()
 	if taskbarHiddenByApp && taskbarStateSaved {
-		setTaskbarAutoHide(taskbarOriginalState)
+		if err := setTaskbarAutoHide(taskbarOriginalState); err != nil {
+			fmt.Println("restoreTaskbar:", err)
+		}
 		taskbarHiddenByApp = false
 	}
 }
@@ -85,7 +100,9 @@ func restoreTaskbarOnExit() {
 	taskbarMu.Lock()
 	defer taskbarMu.Unlock()
 	if taskbarStateSaved {
-		setTaskbarAutoHide(taskbarOriginalState)
+		if err := setTaskbarAutoHide(taskbarOriginalState); err != nil {
+			fmt.Println("restoreTaskbarOnExit:", err)
+		}
 		taskbarHiddenByApp = false
 	}
 }
