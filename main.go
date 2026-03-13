@@ -163,7 +163,6 @@ func scanWindows(settings *Settings) {
 
 		chWindowList <- windowData // Update global window list
 
-		foregroundHwnd := getForegroundWindow()
 		shouldHideTaskbar := false
 
 		for appSettingIdx, appSetting := range settings.Apps {
@@ -182,8 +181,8 @@ func scanWindows(settings *Settings) {
 						settings.Save()
 					}
 					makeBorderless(win, appSetting)
-					// Check if this app is in the foreground and wants taskbar hidden
-					if appSetting.HideTaskbar && win.hwnd == foregroundHwnd {
+					// Hide taskbar as long as this app's window exists
+					if appSetting.HideTaskbar {
 						shouldHideTaskbar = true
 					}
 					break
@@ -191,13 +190,13 @@ func scanWindows(settings *Settings) {
 			}
 		}
 
-		// Also check non-auto-apply apps that are already borderless and in foreground
+		// Also check non-auto-apply apps that are already borderless and running
 		for _, appSetting := range settings.Apps {
 			if !appSetting.HideTaskbar {
 				continue
 			}
 			for _, win := range windowData {
-				if matchWindow(win, appSetting) && isBorderless(win) && win.hwnd == foregroundHwnd {
+				if matchWindow(win, appSetting) && isBorderless(win) {
 					shouldHideTaskbar = true
 				}
 			}
