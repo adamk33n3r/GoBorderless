@@ -28,7 +28,7 @@ func (w Window) String() string {
 }
 
 var monitors []Monitor
-var chWindowList = make(chan []Window) // Channel to send window list updates
+var chWindowList = make(chan []Window, 1) // Buffered so scan loop doesn't block when GUI isn't consuming updates
 
 var ALWAYS_HIDDEN_PROCESSESS = []string{
 	// Skip self
@@ -161,7 +161,11 @@ func scanWindows(settings *Settings) {
 		allWindows := EnumWindows()
 		windowData := getWindowData(allWindows)
 
-		chWindowList <- windowData // Update global window list
+		// Non-blocking send: drop stale data if GUI isn't consuming
+		select {
+		case chWindowList <- windowData:
+		default:
+		}
 
 		shouldHideTaskbar := false
 
