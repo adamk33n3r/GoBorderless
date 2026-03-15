@@ -15,9 +15,10 @@ const (
 )
 
 const (
-	ABM_GETSTATE = 0x00000004
-	ABM_SETSTATE = 0x0000000A
-	ABS_AUTOHIDE = 0x01
+	ABM_GETSTATE  = 0x00000004
+	ABM_SETSTATE  = 0x0000000A
+	ABM_ACTIVATE  = 0x00000006
+	ABS_AUTOHIDE  = 0x01
 	ABS_ALWAYSONTOP = 0x02
 )
 
@@ -214,5 +215,9 @@ func setTaskbarAutoHide(state uint32) error {
 		lParam: uintptr(state),
 	}
 	procSHAppBarMessage.Call(ABM_SETSTATE, uintptr(unsafe.Pointer(&abd)))
+	// ABM_ACTIVATE forces the taskbar to re-evaluate its auto-hide state,
+	// causing it to actually retract immediately instead of waiting for
+	// a mouse/focus event.
+	procSHAppBarMessage.Call(ABM_ACTIVATE, uintptr(unsafe.Pointer(&abd)))
 	return nil
 }
