@@ -99,19 +99,27 @@ func getWindowData(hwnds []win.HWND) []Window {
 			continue
 		}
 
-		processName := filepath.Base(processPath)
-
 		// Filter out some stuff you probably never want to see
-		if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.TrimSuffix(strings.ToLower(processName), filepath.Ext(processName))) {
-			continue
-		}
-		if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(title)) {
+		if shouldHideWindow(processPath, title) {
 			continue
 		}
 
 		windows = append(windows, Window{hwnd: hwnd, title: title, exePath: processPath})
 	}
 	return windows
+}
+
+/**
+ * Windows the user almost certainly never wants to configure: system processes,
+ * browsers, launchers, other borderless tools, and this app itself. Matched on
+ * the executable name without its extension, or on the window title.
+ */
+func shouldHideWindow(processPath string, title string) bool {
+	processName := strings.ToLower(filepath.Base(processPath))
+	if slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.TrimSuffix(processName, filepath.Ext(processName))) {
+		return true
+	}
+	return slices.Contains(ALWAYS_HIDDEN_PROCESSESS, strings.ToLower(title))
 }
 
 func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
-	"github.com/lxn/win"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -73,9 +72,7 @@ func getWindowsForSelect(allWindows []Window) []Window {
 	// Perhaps we should also check the list of existing configs?
 	if filterApplications.Checked {
 		for _, window := range allWindows {
-			style := getWindowStyle(window.hwnd)
-			if style&win.WS_CAPTION > 0 &&
-				((style&win.WS_BORDER) > 0 || (style&win.WS_THICKFRAME) > 0) {
+			if !isBorderlessStyle(getWindowStyle(window.hwnd)) {
 				filteredWindows = append(filteredWindows, window)
 			}
 		}

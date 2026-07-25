@@ -57,17 +57,68 @@ Important environment facts:
   `go install ./cmd/fyne` from that fork.
 - `go.mod` has `replace fyne.io/fyne/v2 v2.6.1 => github.com/adamk33n3r/fyne/v2 v2.7.0` — a
   personal Fyne fork. Do not drop this replace when bumping deps.
-- On Linux/macOS you can only type-check the pure-Go packages:
-  `GOOS=windows go build ./ui/... ./rx/... ./res/...` succeeds; `go build ./...` (root package)
-  fails with `build constraints exclude all Go files in .../go-gl/gl` because cross-compiling the
-  GL driver needs a Windows cgo toolchain. That failure is expected in this container — it is not
-  a code problem you introduced.
-- There are **no tests** in the repo (`*_test.go` count: 0). Don't claim tests pass; if you add
-  logic that is testable without Win32, adding tests is welcome but keep them OS-independent.
+- On Linux/macOS `go build ./...` fails with `build constraints exclude all Go files in
+  .../go-gl/gl`: cross-compiling the GL driver needs a Windows cgo toolchain. `GOOS=windows go
+  build ./ui/... ./rx/... ./res/...` works anywhere. See **Testing** for how to build and run the
+  whole thing from Linux when you need to.
 - Lint: `golangci-lint` (staticcheck is the configured lint tool in `.vscode/settings.json`). No
   config file is committed, so defaults apply. Keep `gofmt` clean — `gofmt -l .` must print nothing.
+- CI (`.github/workflows/test.yml`) builds, vets and tests on `windows-latest`, and runs the
+  cross-platform packages under `-race` plus a `gofmt` check on `ubuntu-latest`.
 - `unsafe.Pointer` conversions that govet flags legitimately carry `//nolint:govet`; follow that
-  pattern rather than restructuring correct Win32 interop to appease the linter.
+  pattern rather than restructuring correct Win32 interop to appease the linter. Plain
+  `go vet ./...` still fails on them (`//nolint` only silences golangci-lint), so use
+  `go vet -unsafeptr=false ./...` — which is what CI runs. `go test` is unaffected; its built-in
+  vet subset does not include `unsafeptr`.
+
+## Testing
+
+```sh
+go test ./...                          # everything (Windows)
+go test -race ./ui/... ./rx/...        # cross-platform packages, runs on any OS
+go test -run TestMatchWindow -v .       # single test
+```
+
+| File | Covers |
+| --- | --- |
+| `settings_test.go` | JSON load/save/backup, the MatchType wire format, add/remove/sort |
+| `main_test.go` | `matchWindow`, `shouldHideWindow`, monitor lookup, enumeration smoke tests |
+| `borderless_test.go` | style predicates and placement math, plus real-window integration tests |
+| `gui_test.go` | validators, the new/edit dialog's validation rules, window dropdown, theme |
+| `util_test.go` | `firstInSlice` |
+| `ui/*_test.go` | generic `Select[T]`, `AppSettingRow` |
+| `rx/observable_test.go` | fan-out, unsubscribe, concurrent subscribe under `-race` |
+
+Conventions to follow when adding tests:
+
+- **Never `t.Parallel()` in the root package.** Its tests swap package-level globals (`monitors`,
+  `appFolder`/`settingsPath`, the dialog widget vars) and restore them via `t.Cleanup`. Use the
+  existing helpers — `useTempSettings`, `useMonitors`, `setUpAppSettingForm` — rather than
+  assigning globals directly.
+- Widget tests need a running app; `TestMain` in `gui_test.go` (and in `ui/select_test.go`) calls
+  `test.NewApp()` for the package. There is one `TestMain` per package — extend it, don't add one.
+- Tests that need a real desktop skip rather than fail: window creation is gated on
+  `runningUnderWine()` and on `CreateWindowEx` returning 0, and the enumeration tests skip when no
+  windows are reported. Keep that pattern so the suite stays green in headless environments — but
+  remember a green local run does **not** mean those paths were exercised. Check for `SKIP` lines.
+- A few tests deliberately pin current, imperfect behaviour (the leaked subscriber channel in
+  `rx`, `ui.Select.SetSelected` accepting an unknown option). They say so in a comment; if you
+  improve the behaviour, update the test rather than working around it.
+
+### Running the full suite from Linux
+
+The suite can be cross-built and run under wine, which is how it is verified in containers:
+
+```sh
+apt-get install -y gcc-mingw-w64-x86-64 wine64
+export WINEPREFIX=/tmp/wineprefix WINEDEBUG=-all
+GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
+  go test -exec /usr/lib/wine/wine64 -count=1 ./...
+```
+
+Caveats: the eight real-window/enumeration tests skip (wine has no desktop, and `SetWindowPos`
+hangs there even under Xvfb — hence the explicit wine check), and `-race` is unavailable on this
+cross-build. Only a run on real Windows covers everything.
 
 ## Release process
 
@@ -122,8 +173,15 @@ the manual Apply button and the auto-apply loop do this, and both guard it with 
 so an already-borderless window doesn't overwrite the saved original geometry. Preserve that guard.
 
 **Borderless detection** is style-based: a window counts as bordered when it has `WS_CAPTION` plus
-`WS_BORDER` or `WS_THICKFRAME`. The same expression drives the "Filter out borderless applications"
-checkbox in the dialog — keep the two in sync if you change it.
+`WS_BORDER` or `WS_THICKFRAME`. That rule lives in one place, `isBorderlessStyle` in
+`borderless.go`, and both `isBorderless` and the dialog's "Filter out borderless applications"
+checkbox go through it. Note `WS_BORDER` is a subset of `WS_CAPTION`, so the caption test alone
+does not mean what it looks like — change the predicate, not its call sites.
+
+**Pure helpers worth reusing.** The Win32-free parts of the logic are deliberately split out so
+they can be tested without an HWND: `isBorderlessStyle`/`borderlessStyle`/`restoredStyle` and
+`borderlessRect` (offset-from-monitor-origin math) in `borderless.go`, and `shouldHideWindow` (the
+blacklist rule) in `main.go`. Put new logic in that shape rather than inline in a Win32 wrapper.
 
 **Single instance.** A named mutex (`GoBorderless_InstanceMutex`) is created at startup; on
 `ERROR_ALREADY_EXISTS` the app finds the existing window by title and foregrounds it instead of
@@ -155,8 +213,9 @@ don't commit it (air already excludes it from watching).
 
 ## Gotchas for non-Windows agents
 
-You cannot run or fully compile this app in a Linux container. Verify changes with
-`gofmt -l .` and, for the pure-Go packages, `GOOS=windows go build ./ui/... ./rx/... ./res/...` and
-`golangci-lint run ./ui/... ./rx/...` (both clean as of this writing). The root package can't be
-built or linted off Windows. Reason carefully about the Win32 paths instead of assuming a build check would have
+`go build ./...` and `golangci-lint run` only work on Windows for the root package; use
+`gofmt -l .`, `GOOS=windows go build ./ui/... ./rx/... ./res/...` and
+`golangci-lint run ./ui/... ./rx/...` for a quick local check. To actually build and run the whole
+suite from Linux, use the mingw + wine recipe under **Testing** — but the real-window tests skip
+there, so say which paths were and were not exercised rather than implying a full verification. Reason carefully about the Win32 paths instead of assuming a build check would have
 caught it, and say plainly in your summary that a full Windows build/run was not performed.

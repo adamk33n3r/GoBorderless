@@ -80,7 +80,14 @@ func newEventSourceIterable[T any](next <-chan T) Iterable[T] {
 
 	go func() {
 		for item := range next {
-			for _, sub := range it.subscribers {
+			// Snapshot under the lock: Observe/Unsub mutate the slice from other
+			// goroutines while we are fanning out.
+			it.mutex.RLock()
+			subs := make([]chan T, len(it.subscribers))
+			copy(subs, it.subscribers)
+			it.mutex.RUnlock()
+
+			for _, sub := range subs {
 				sub <- item
 			}
 		}
