@@ -40,6 +40,7 @@ func registerOverlayClass() {
 			Style:         win.CS_HREDRAW | win.CS_VREDRAW, // Redraw on resize
 			LpfnWndProc:   overlayWndProcCb,
 			HInstance:     win.GetModuleHandle(nil),
+			HCursor:       win.LoadCursor(0, win.MAKEINTRESOURCE(win.IDC_ARROW)),
 			HbrBackground: win.HBRUSH(win.GetStockObject(win.BLACK_BRUSH)), // Solid black fill
 			LpszClassName: classNamePtr,
 		}
