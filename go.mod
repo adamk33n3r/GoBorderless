@@ -1,8 +1,6 @@
 module github.com/adamk33n3r/GoBorderless
 
-go 1.24.11
-
-toolchain go1.24.12
+go 1.25.0
 
 require (
 	github.com/creativeprojects/go-selfupdate v1.5.2
@@ -57,9 +55,9 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/yuin/goldmark v1.7.12 // indirect
-	golang.org/x/image v0.28.0 // indirect
+	golang.org/x/image v0.38.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
