@@ -117,6 +117,10 @@ func loadSettings() (*Settings, error) {
 	if err := json.Unmarshal(bytes, &settings); err != nil {
 		return newSettings(), err
 	}
+	// A file containing literal "null" unmarshals cleanly into a nil pointer.
+	if settings == nil {
+		return newSettings(), nil
+	}
 	settings.sortApps()
 	return settings, nil
 }

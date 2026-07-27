@@ -72,7 +72,10 @@ func (i *IterableImpl[T]) Unsub(ch <-chan T) {
 func (i *IterableImpl[T]) Subscribers() []chan T {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
-	return i.subscribers
+	// Copy so callers (e.g. UnsubscribeAll) can iterate while Unsub mutates the list.
+	subs := make([]chan T, len(i.subscribers))
+	copy(subs, i.subscribers)
+	return subs
 }
 
 func newEventSourceIterable[T any](next <-chan T) Iterable[T] {
@@ -80,7 +83,14 @@ func newEventSourceIterable[T any](next <-chan T) Iterable[T] {
 
 	go func() {
 		for item := range next {
-			for _, sub := range it.subscribers {
+			// Snapshot under the lock: Observe/Unsub mutate the slice from other
+			// goroutines while we are fanning out.
+			it.mutex.RLock()
+			subs := make([]chan T, len(it.subscribers))
+			copy(subs, it.subscribers)
+			it.mutex.RUnlock()
+
+			for _, sub := range subs {
 				sub <- item
 			}
 		}

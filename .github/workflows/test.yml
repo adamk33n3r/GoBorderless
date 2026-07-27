@@ -1,0 +1,70 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - 'v*.*.*'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # The app is Windows only, so this is the run that exercises everything,
+  # including the tests that create real windows.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Build
+        run: go build ./...
+
+      # The Win32 interop passes pointers to LazyDLL procs by design, which the
+      # unsafeptr check flags (see the //nolint:govet markers in winapi.go).
+      - name: Vet
+        run: go vet -unsafeptr=false ./...
+
+      - name: Test
+        run: go test -count=1 ./...
+
+  # The pure-Go packages build anywhere, which buys a fast check plus the race
+  # detector on the observable that fans window updates out to the UI.
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Check formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Test cross-platform packages
+        run: go test -race -count=1 ./ui/... ./rx/...
