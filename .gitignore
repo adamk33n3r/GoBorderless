@@ -21,3 +21,5 @@
 go.work
 
 tmp/
+
+.claude/settings.local.json

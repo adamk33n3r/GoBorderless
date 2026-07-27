@@ -97,11 +97,18 @@ func buildDefaultsTab(settings *Settings) *fyne.Container {
 			container.NewVBox(defaultHeightLabel, defaultHeight),
 		),
 	)
+	defaultBlackOverlay := widget.NewCheck("Black Overlay", func(checked bool) {
+		settings.Defaults.BlackOverlay = checked
+		settings.Save()
+	})
+	defaultBlackOverlay.SetChecked(settings.Defaults.BlackOverlay)
+
 	return container.NewPadded(container.NewVBox(
 		defaultDisplay,
 		defaultMatchTypeLabel,
 		defaultMatchType,
 		defaultHideTaskbar,
 		defaultsGrid,
+		defaultBlackOverlay,
 	))
 }

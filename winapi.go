@@ -15,10 +15,10 @@ const (
 )
 
 const (
-	ABM_GETSTATE  = 0x00000004
-	ABM_SETSTATE  = 0x0000000A
-	ABM_ACTIVATE  = 0x00000006
-	ABS_AUTOHIDE  = 0x01
+	ABM_GETSTATE    = 0x00000004
+	ABM_SETSTATE    = 0x0000000A
+	ABM_ACTIVATE    = 0x00000006
+	ABS_AUTOHIDE    = 0x01
 	ABS_ALWAYSONTOP = 0x02
 )
 
@@ -42,6 +42,7 @@ var (
 	procFindWindowW          = user32.NewProc("FindWindowW")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
 	procSHAppBarMessage      = shell32.NewProc("SHAppBarMessage")
+	procSetWindowRgn         = user32.NewProc("SetWindowRgn")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
@@ -168,6 +169,15 @@ func openMutex(name string) (windows.Handle, error) {
 
 func closeMutex(mutex windows.Handle) error {
 	return windows.CloseHandle(mutex)
+}
+
+func setWindowRgn(hwnd win.HWND, hRgn win.HRGN, redraw bool) bool {
+	bRedraw := uintptr(0)
+	if redraw {
+		bRedraw = 1
+	}
+	ret, _, _ := procSetWindowRgn.Call(uintptr(hwnd), uintptr(hRgn), bRedraw)
+	return ret != 0
 }
 
 // func waitForSingleObject(mutex *windows.Mutex) error {

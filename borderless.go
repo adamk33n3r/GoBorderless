@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	taskbarMu              sync.Mutex
-	taskbarOriginalState   uint32
-	taskbarStateSaved      bool
-	taskbarHiddenByApp     bool
+	taskbarMu            sync.Mutex
+	taskbarOriginalState uint32
+	taskbarStateSaved    bool
+	taskbarHiddenByApp   bool
 )
 
 func isBorderless(window Window) bool {
@@ -27,6 +27,10 @@ func makeBorderless(window Window, appSetting AppSetting) {
 	setWindowStyle(window.hwnd, style & ^win.WS_CAPTION & ^win.WS_THICKFRAME)
 	monitor := monitors[appSetting.Monitor-1]
 	setWindowPos(window.hwnd, appSetting.OffsetX+monitor.left, appSetting.OffsetY+monitor.top, appSetting.Width, appSetting.Height)
+
+	if appSetting.BlackOverlay {
+		createOverlay(window.hwnd, appSetting)
+	}
 }
 
 /**
@@ -41,6 +45,8 @@ func restoreWindow(window Window, appSetting AppSetting) {
 	// Restore the border and title bar
 	setWindowStyle(window.hwnd, style|win.WS_OVERLAPPEDWINDOW)
 	setWindowPos(window.hwnd, appSetting.PreOffsetX, appSetting.PreOffsetY, appSetting.PreWidth, appSetting.PreHeight)
+
+	destroyOverlay(window.hwnd)
 	if appSetting.HideTaskbar {
 		restoreTaskbar()
 	}
