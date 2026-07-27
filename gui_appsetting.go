@@ -255,6 +255,15 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		),
 	)
 
+	blackOverlayDefault := settings.Defaults.BlackOverlay
+	if !isNew {
+		blackOverlayDefault = appSetting.BlackOverlay
+	}
+	blackOverlayCheck := widget.NewCheck("Black Overlay", func(checked bool) {
+		appSetting.BlackOverlay = checked
+	})
+	blackOverlayCheck.SetChecked(blackOverlayDefault)
+
 	if isNew {
 		fmt.Println("subscribing to windows observable")
 		// TODO: make it work like subject where it outputs last received data on subscription
@@ -281,6 +290,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool,
 		widget.NewLabel("Match Type"),
 		matchType,
 		textGrid,
+		blackOverlayCheck,
 		widget.NewLabel(""), // spacer
 		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),
 	)

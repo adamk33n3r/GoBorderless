@@ -43,6 +43,10 @@ func makeBorderless(window Window, appSetting AppSetting) {
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
 	x, y, width, height := borderlessRect(appSetting, monitors[appSetting.Monitor-1])
 	setWindowPos(window.hwnd, x, y, width, height)
+
+	if appSetting.BlackOverlay {
+		createOverlay(window.hwnd, appSetting)
+	}
 }
 
 /**
@@ -55,4 +59,6 @@ func restoreWindow(window Window, appSetting AppSetting) {
 	fmt.Println("Restoring window:", window.title, window.exePath)
 	setWindowStyle(window.hwnd, restoredStyle(getWindowStyle(window.hwnd)))
 	setWindowPos(window.hwnd, appSetting.PreOffsetX, appSetting.PreOffsetY, appSetting.PreWidth, appSetting.PreHeight)
+
+	destroyOverlay(window.hwnd)
 }

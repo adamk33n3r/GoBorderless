@@ -22,6 +22,7 @@ var (
 	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
+	procSetWindowRgn         = user32.NewProc("SetWindowRgn")
 )
 
 func enumWindows(callback func(hwnd uintptr, lparam uintptr) uintptr, extra unsafe.Pointer) {
@@ -148,6 +149,15 @@ func openMutex(name string) (windows.Handle, error) {
 
 func closeMutex(mutex windows.Handle) error {
 	return windows.CloseHandle(mutex)
+}
+
+func setWindowRgn(hwnd win.HWND, hRgn win.HRGN, redraw bool) bool {
+	bRedraw := uintptr(0)
+	if redraw {
+		bRedraw = 1
+	}
+	ret, _, _ := procSetWindowRgn.Call(uintptr(hwnd), uintptr(hRgn), bRedraw)
+	return ret != 0
 }
 
 // func waitForSingleObject(mutex *windows.Mutex) error {

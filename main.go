@@ -164,6 +164,15 @@ func EnumWindows() []win.HWND {
 	return enumWindowsWrapper.windows
 }
 
+func findWindowByHwnd(windows []Window, hwnd win.HWND) *Window {
+	for i := range windows {
+		if windows[i].hwnd == hwnd {
+			return &windows[i]
+		}
+	}
+	return nil
+}
+
 func scanWindows(settings *Settings) {
 	for {
 		allWindows := EnumWindows()
@@ -188,6 +197,26 @@ func scanWindows(settings *Settings) {
 					makeBorderless(win, appSetting)
 					break
 				}
+			}
+		}
+
+		// Manage overlay lifecycle: handle app close, minimize, restore, and z-order sync
+		overlayMu.Lock()
+		appHwnds := make([]win.HWND, 0, len(activeOverlays))
+		for appHwnd := range activeOverlays {
+			appHwnds = append(appHwnds, appHwnd)
+		}
+		overlayMu.Unlock()
+
+		for _, appHwnd := range appHwnds {
+			if findWindowByHwnd(windowData, appHwnd) == nil {
+				// App window is gone
+				destroyOverlay(appHwnd)
+			} else if win.IsIconic(appHwnd) {
+				hideOverlay(appHwnd)
+			} else {
+				showOverlay(appHwnd)
+				syncOverlayZOrder(appHwnd)
 			}
 		}
 

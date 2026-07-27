@@ -55,19 +55,20 @@ func GetMatchTypeFromString(s string) MatchType {
 }
 
 type AppSetting struct {
-	WindowName string    `json:"windowName"`
-	ExePath    string    `json:"exePath"`
-	MatchType  MatchType `json:"matchType"`
-	AutoApply  bool      `json:"autoApply"`
-	Monitor    int       `json:"monitor"`
-	OffsetX    int32     `json:"offsetX"`
-	OffsetY    int32     `json:"offsetY"`
-	Width      int32     `json:"width"`
-	Height     int32     `json:"height"`
-	PreOffsetX int32     `json:"preOffsetX"`
-	PreOffsetY int32     `json:"preOffsetY"`
-	PreWidth   int32     `json:"preWidth"`
-	PreHeight  int32     `json:"preHeight"`
+	WindowName   string    `json:"windowName"`
+	ExePath      string    `json:"exePath"`
+	MatchType    MatchType `json:"matchType"`
+	AutoApply    bool      `json:"autoApply"`
+	BlackOverlay bool      `json:"blackOverlay"`
+	Monitor      int       `json:"monitor"`
+	OffsetX      int32     `json:"offsetX"`
+	OffsetY      int32     `json:"offsetY"`
+	Width        int32     `json:"width"`
+	Height       int32     `json:"height"`
+	PreOffsetX   int32     `json:"preOffsetX"`
+	PreOffsetY   int32     `json:"preOffsetY"`
+	PreWidth     int32     `json:"preWidth"`
+	PreHeight    int32     `json:"preHeight"`
 }
 
 func (as AppSetting) Display() string {
@@ -75,12 +76,13 @@ func (as AppSetting) Display() string {
 }
 
 type AppSettingDefaults struct {
-	Monitor   int       `json:"monitor"`
-	MatchType MatchType `json:"matchType"`
-	OffsetX   int32     `json:"offsetX"`
-	OffsetY   int32     `json:"offsetY"`
-	Width     int32     `json:"width"`
-	Height    int32     `json:"height"`
+	Monitor      int       `json:"monitor"`
+	MatchType    MatchType `json:"matchType"`
+	BlackOverlay bool      `json:"blackOverlay"`
+	OffsetX      int32     `json:"offsetX"`
+	OffsetY      int32     `json:"offsetY"`
+	Width        int32     `json:"width"`
+	Height       int32     `json:"height"`
 }
 
 type Settings struct {
