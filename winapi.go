@@ -14,6 +14,23 @@ const (
 	maxPath = 260 // Maximum path length for Windows file paths
 )
 
+const (
+	ABM_GETSTATE    = 0x00000004
+	ABM_SETSTATE    = 0x0000000A
+	ABM_ACTIVATE    = 0x00000006
+	ABS_AUTOHIDE    = 0x01
+	ABS_ALWAYSONTOP = 0x02
+)
+
+type APPBARDATA struct {
+	cbSize           uint32
+	hWnd             uintptr
+	uCallbackMessage uint32
+	uEdge            uint32
+	rc               win.RECT
+	lParam           uintptr
+}
+
 var (
 	user32  = windows.NewLazySystemDLL("user32.dll")
 	shell32 = windows.NewLazySystemDLL("shell32.dll")
@@ -21,7 +38,10 @@ var (
 	procGetWindowTextW       = user32.NewProc("GetWindowTextW")
 	procGetWindowTextLengthW = user32.NewProc("GetWindowTextLengthW")
 	procEnumDisplayMonitors  = user32.NewProc("EnumDisplayMonitors")
+	procGetForegroundWindow  = user32.NewProc("GetForegroundWindow")
+	procFindWindowW          = user32.NewProc("FindWindowW")
 	procGetKnownFolderPath   = shell32.NewProc("SHGetKnownFolderPath")
+	procSHAppBarMessage      = shell32.NewProc("SHAppBarMessage")
 	procSetWindowRgn         = user32.NewProc("SetWindowRgn")
 )
 
@@ -163,3 +183,51 @@ func setWindowRgn(hwnd win.HWND, hRgn win.HRGN, redraw bool) bool {
 // func waitForSingleObject(mutex *windows.Mutex) error {
 // 	return windows.WaitForSingleObject(windows.Handle(mutex), windows.INFINITE)
 // }
+
+func getForegroundWindow() win.HWND {
+	ret, _, _ := procGetForegroundWindow.Call()
+	return win.HWND(ret)
+}
+
+func findWindowByClass(className string) (uintptr, error) {
+	classPtr, err := windows.UTF16PtrFromString(className)
+	if err != nil {
+		return 0, fmt.Errorf("findWindowByClass: %w", err)
+	}
+	ret, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(classPtr)), 0)
+	if ret == 0 {
+		return 0, fmt.Errorf("findWindowByClass: window %q not found", className)
+	}
+	return ret, nil
+}
+
+func getTaskbarAutoHide() (uint32, error) {
+	taskbarHwnd, err := findWindowByClass("Shell_TrayWnd")
+	if err != nil {
+		return 0, fmt.Errorf("getTaskbarAutoHide: %w", err)
+	}
+	abd := APPBARDATA{
+		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
+		hWnd:   taskbarHwnd,
+	}
+	ret, _, _ := procSHAppBarMessage.Call(ABM_GETSTATE, uintptr(unsafe.Pointer(&abd)))
+	return uint32(ret), nil
+}
+
+func setTaskbarAutoHide(state uint32) error {
+	taskbarHwnd, err := findWindowByClass("Shell_TrayWnd")
+	if err != nil {
+		return fmt.Errorf("setTaskbarAutoHide: %w", err)
+	}
+	abd := APPBARDATA{
+		cbSize: uint32(unsafe.Sizeof(APPBARDATA{})),
+		hWnd:   taskbarHwnd,
+		lParam: uintptr(state),
+	}
+	procSHAppBarMessage.Call(ABM_SETSTATE, uintptr(unsafe.Pointer(&abd)))
+	// ABM_ACTIVATE forces the taskbar to re-evaluate its auto-hide state,
+	// causing it to actually retract immediately instead of waiting for
+	// a mouse/focus event.
+	procSHAppBarMessage.Call(ABM_ACTIVATE, uintptr(unsafe.Pointer(&abd)))
+	return nil
+}

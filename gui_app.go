@@ -311,6 +311,7 @@ func handleWindowsInit(fyneApp fyne.App, window fyne.Window, settings *Settings)
 
 			window.SetCloseIntercept(func() {
 				if !settings.CloseToTray {
+					restoreTaskbarOnExit()
 					fyneApp.Quit()
 					return
 				}

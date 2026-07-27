@@ -60,6 +60,7 @@ type AppSetting struct {
 	MatchType    MatchType `json:"matchType"`
 	AutoApply    bool      `json:"autoApply"`
 	BlackOverlay bool      `json:"blackOverlay"`
+	HideTaskbar  bool      `json:"hideTaskbar"`
 	Monitor      int       `json:"monitor"`
 	OffsetX      int32     `json:"offsetX"`
 	OffsetY      int32     `json:"offsetY"`
@@ -79,6 +80,7 @@ type AppSettingDefaults struct {
 	Monitor      int       `json:"monitor"`
 	MatchType    MatchType `json:"matchType"`
 	BlackOverlay bool      `json:"blackOverlay"`
+	HideTaskbar  bool      `json:"hideTaskbar"`
 	OffsetX      int32     `json:"offsetX"`
 	OffsetY      int32     `json:"offsetY"`
 	Width        int32     `json:"width"`

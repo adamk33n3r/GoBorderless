@@ -28,7 +28,7 @@ func (w Window) String() string {
 }
 
 var monitors []Monitor
-var chWindowList = make(chan []Window) // Channel to send window list updates
+var chWindowList = make(chan []Window, 1) // Buffered so scan loop doesn't block when GUI isn't consuming updates
 
 var ALWAYS_HIDDEN_PROCESSESS = []string{
 	// Skip self
@@ -170,7 +170,14 @@ func scanWindows(settings *Settings) {
 		allWindows := EnumWindows()
 		windowData := getWindowData(allWindows)
 
-		chWindowList <- windowData // Update global window list
+		// Non-blocking send: drop stale data if GUI isn't consuming
+		select {
+		case chWindowList <- windowData:
+		default:
+		}
+
+		shouldHideTaskbar := false
+
 		for appSettingIdx, appSetting := range settings.Apps {
 			if !appSetting.AutoApply {
 				continue
@@ -187,9 +194,31 @@ func scanWindows(settings *Settings) {
 						settings.Save()
 					}
 					makeBorderless(win, appSetting)
+					// Hide taskbar as long as this app's window exists
+					if appSetting.HideTaskbar {
+						shouldHideTaskbar = true
+					}
 					break
 				}
 			}
+		}
+
+		// Also check non-auto-apply apps that are already borderless and running
+		for _, appSetting := range settings.Apps {
+			if !appSetting.HideTaskbar {
+				continue
+			}
+			for _, win := range windowData {
+				if matchWindow(win, appSetting) && isBorderless(win) {
+					shouldHideTaskbar = true
+				}
+			}
+		}
+
+		if shouldHideTaskbar {
+			hideTaskbar()
+		} else {
+			restoreTaskbar()
 		}
 
 		// Manage overlay lifecycle: handle app close, minimize, restore, and z-order sync
@@ -246,6 +275,8 @@ func main() {
 	}
 
 	settings.Save()
+	// Save the user's original taskbar state before we potentially modify it
+	saveTaskbarState()
 	fmt.Println(settings)
 	for _, mon := range monitors {
 		fmt.Printf("Monitor %d\n", mon.number)
