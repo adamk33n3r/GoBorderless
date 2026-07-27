@@ -49,7 +49,12 @@ func borderlessRect(appSetting AppSetting, monitor Monitor) (x, y, width, height
 func makeBorderless(window Window, appSetting AppSetting) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
-	x, y, width, height := borderlessRect(appSetting, monitors[appSetting.Monitor-1])
+	// Monitor is 1-based; 0 means unset and out-of-range would panic on index.
+	idx := appSetting.Monitor - 1
+	if idx < 0 || idx >= len(monitors) {
+		return
+	}
+	x, y, width, height := borderlessRect(appSetting, monitors[idx])
 	setWindowPos(window.hwnd, x, y, width, height)
 
 	if appSetting.BlackOverlay {

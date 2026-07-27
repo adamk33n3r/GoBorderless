@@ -98,11 +98,15 @@ func TestUnsubscribeAll(t *testing.T) {
 	source := make(chan int)
 	obs := FromChannel(source)
 
-	got := make(chan int, 1)
+	// Three subscribers: iterating a live slice while Unsub mutates it would
+	// skip or double-remove entries; Subscribers() must return a snapshot.
+	got := make(chan int, 3)
+	obs.Subscribe(func(item int) { got <- item })
 	obs.Subscribe(func(item int) { got <- item })
 	obs.Subscribe(func(item int) { got <- item })
 
 	source <- 1
+	recv(t, got)
 	recv(t, got)
 	recv(t, got)
 

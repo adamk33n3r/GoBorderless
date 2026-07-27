@@ -13,7 +13,7 @@ Module: `github.com/adamk33n3r/GoBorderless` · Go 1.24 · License: GPL-3.0
 
 ## Repository layout
 
-```
+```text
 main.go              Entry point: settings load, single-instance mutex, monitor enum,
                      scanWindows() goroutine, buildApp(). Also Window type + match logic
                      and ALWAYS_HIDDEN_PROCESSESS filter list.
@@ -46,7 +46,7 @@ All real building happens **on Windows** — the app needs cgo (OpenGL/GLFW via 
 go run .                                     # quick dev run (Windows)
 air                                          # live-reload dev loop, uses .air.toml
 fyne package --release                       # release build -> GoBorderless.exe (build.bat does this)
-go install fyne.io/tools/cmd/fyne@latest     # but see the fork note below
+git clone https://github.com/adamk33n3r/fyne-tools.git && cd fyne-tools && go install ./cmd/fyne
 res\bundle.bat                               # regenerate res/bundled.go from the icons
 ```
 

@@ -72,7 +72,10 @@ func (i *IterableImpl[T]) Unsub(ch <-chan T) {
 func (i *IterableImpl[T]) Subscribers() []chan T {
 	i.mutex.RLock()
 	defer i.mutex.RUnlock()
-	return i.subscribers
+	// Copy so callers (e.g. UnsubscribeAll) can iterate while Unsub mutates the list.
+	subs := make([]chan T, len(i.subscribers))
+	copy(subs, i.subscribers)
+	return subs
 }
 
 func newEventSourceIterable[T any](next <-chan T) Iterable[T] {
