@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE — Layout Configs UI</title>
+  <style>
+    /* PROTOTYPE: three Layout Configs UI shapes for reaction. Not production. */
+    :root {
+      --bg: #f2f2f2;
+      --panel: #fafafa;
+      --border: #c8c8c8;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2080e0;
+      --accent-dim: #d6e8f8;
+      --danger: #c0392b;
+      --row-h: 40px;
+      --font: "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font: 13px/1.35 var(--font); color: var(--text);
+      background: #3a3a3a;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px 24px 80px;
+    }
+    .window {
+      width: min(920px, 100%); height: min(640px, 90vh);
+      background: var(--bg); border: 1px solid #222; border-radius: 4px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.45);
+      display: flex; flex-direction: column; overflow: hidden;
+      position: relative;
+    }
+    .titlebar {
+      background: #e8e8e8; border-bottom: 1px solid var(--border);
+      padding: 8px 12px; font-weight: 600; display: flex; gap: 8px; align-items: center;
+    }
+    .titlebar .ver { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 12px; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: #eee; }
+    .tab {
+      padding: 8px 14px; border: none; background: transparent; cursor: default;
+      border-bottom: 2px solid transparent; color: var(--muted); font: inherit;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); background: var(--bg); }
+    .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .hint {
+      font-size: 11px; color: var(--muted); padding: 6px 12px;
+      background: #fff8e1; border-bottom: 1px solid #f0e0a0;
+    }
+    button, select, input[type="text"], input[type="number"] {
+      font: inherit; color: var(--text);
+    }
+    .btn {
+      border: 1px solid var(--border); background: #fff; padding: 4px 10px;
+      border-radius: 3px; cursor: pointer; white-space: nowrap;
+    }
+    .btn:hover { background: #f0f0f0; }
+    .btn.primary { background: var(--accent); color: #fff; border-color: #1860b0; }
+    .btn.primary:hover { background: #1868c0; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.icon { padding: 4px 7px; }
+    .btn.danger { color: var(--danger); }
+    label.check { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+    .field { display: flex; flex-direction: column; gap: 2px; }
+    .field > span { color: var(--muted); font-size: 12px; }
+    .field input, .field select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 3px; background: #fff; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .muted { color: var(--muted); }
+    .badge {
+      display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px;
+      background: var(--accent-dim); color: #145a9e;
+    }
+
+    /* ——— Variant A: Apps-mirror list + modal ——— */
+    .a-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .a-list { flex: 1; overflow: auto; }
+    .a-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+      padding: 8px 12px; border-bottom: 1px solid var(--border); min-height: var(--row-h);
+      background: var(--panel);
+    }
+    .a-row:hover { background: #fff; }
+    .a-row .name { font-weight: 600; }
+    .a-row .sub { font-size: 12px; color: var(--muted); }
+    .a-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .a-footer { padding: 8px 12px; border-top: 1px solid var(--border); }
+    .modal-back {
+      position: absolute; inset: 0; background: rgba(0,0,0,.35);
+      display: flex; align-items: center; justify-content: center; z-index: 5;
+    }
+    .modal {
+      width: min(520px, 92%); max-height: 90%; overflow: auto;
+      background: var(--bg); border: 1px solid #333; border-radius: 4px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.4); padding: 12px 14px;
+    }
+    .modal h3 { margin: 0 0 10px; font-size: 14px; }
+    .modal .section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .modal .section h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+    .matcher-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: start;
+      padding: 8px; border: 1px solid var(--border); border-radius: 3px; background: #fff; margin-bottom: 6px;
+    }
+    .matcher-row .title { font-weight: 600; font-size: 12px; }
+    .matcher-row .exe { font-size: 11px; color: var(--muted); word-break: break-all; }
+    .matcher-row .ctrls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+    .modal-foot { display: flex; justify-content: space-between; margin-top: 14px; }
+
+    /* ——— Variant B: master-detail split ——— */
+    .b-wrap { flex: 1; display: grid; grid-template-columns: 240px 1fr; min-height: 0; }
+    .b-side { border-right: 1px solid var(--border); display: flex; flex-direction: column; background: #eee; }
+    .b-side-head { padding: 8px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; }
+    .b-side-list { flex: 1; overflow: auto; }
+    .b-item {
+      padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer;
+      display: flex; gap: 6px; align-items: flex-start;
+    }
+    .b-item .grip { color: #aaa; cursor: grab; user-select: none; }
+    .b-item.active { background: var(--accent-dim); }
+    .b-item .name { font-weight: 600; }
+    .b-item .meta { font-size: 11px; color: var(--muted); }
+    .b-main { overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .b-main h3 { margin: 0; font-size: 15px; }
+    .b-toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+    .b-matchers { border: 1px solid var(--border); border-radius: 3px; background: #fff; }
+    .b-matchers table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .b-matchers th, .b-matchers td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+    .b-matchers th { background: #f0f0f0; font-weight: 600; color: var(--muted); font-size: 11px; }
+    .b-matchers tr:last-child td { border-bottom: none; }
+    .b-add { padding: 8px; display: flex; gap: 6px; border-top: 1px solid var(--border); background: #f7f7f7; }
+
+    /* ——— Variant C: stacked focus — layouts strip + full-bleed editor ——— */
+    .c-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .c-strip {
+      display: flex; gap: 8px; padding: 10px 12px; overflow-x: auto;
+      border-bottom: 1px solid var(--border); background: #eaeaea;
+    }
+    .c-chip {
+      min-width: 140px; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 4px; background: #fff; cursor: pointer; text-align: left;
+    }
+    .c-chip.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-dim); }
+    .c-chip .name { font-weight: 600; display: block; }
+    .c-chip .meta { font-size: 11px; color: var(--muted); }
+    .c-chip.add { border-style: dashed; color: var(--muted); display: flex; align-items: center; justify-content: center; }
+    .c-editor { flex: 1; overflow: auto; padding: 14px 16px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 16px; }
+    .c-card {
+      background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .c-card h4 { margin: 0; font-size: 13px; }
+    .c-big-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 8px; }
+    .c-big-actions .btn { flex: 1; padding: 8px; font-weight: 600; }
+    .c-matcher {
+      border: 1px solid var(--border); border-radius: 3px; padding: 8px; margin-bottom: 8px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .c-matcher-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+    .c-matcher-bot { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+    /* switcher */
+    .switcher {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: #111; color: #fff; border-radius: 999px; padding: 8px 10px;
+      display: flex; align-items: center; gap: 10px; z-index: 50;
+      box-shadow: 0 6px 24px rgba(0,0,0,.4); font-size: 13px;
+    }
+    .switcher button {
+      background: #333; color: #fff; border: none; width: 32px; height: 32px;
+      border-radius: 50%; cursor: pointer; font-size: 16px;
+    }
+    .switcher button:hover { background: #555; }
+    .switcher .label { min-width: 220px; text-align: center; }
+    .switcher .label small { display: block; color: #aaa; font-size: 11px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!--
+    PROTOTYPE — Layout Configs tab + editor UI shapes.
+    Question: what should the Layout Configs tab and create/edit dialog look/feel like?
+    Three variants via ?variant=A|B|C — throwaway; not production Fyne.
+    Sample data only; no persistence.
+  -->
+  <div class="window" id="app">
+    <div class="titlebar">
+      <span>Go Borderless!</span>
+      <span class="ver">v0.0.0-prototype</span>
+    </div>
+    <div class="tabs">
+      <button class="tab">Apps</button>
+      <button class="tab active">Layouts</button>
+      <button class="tab">Defaults</button>
+      <button class="tab">Settings</button>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="body" id="body"></div>
+  </div>
+
+  <div class="switcher" role="navigation" aria-label="Prototype variant switcher">
+    <button type="button" id="prev" aria-label="Previous variant">←</button>
+    <div class="label" id="switcher-label"></div>
+    <button type="button" id="next" aria-label="Next variant">→</button>
+  </div>
+
+  <script>
+    const VARIANTS = {
+      A: { name: "Apps-mirror list + modal", desc: "Same density as Apps: list rows + Create button; edit in a modal dialog." },
+      B: { name: "Master–detail split", desc: "Reorderable list on the left; editor always open on the right — no modal." },
+      C: { name: "Chip strip + dual pane", desc: "Horizontal layout picker; geometry card left, matchers card right; big Apply/Restore." },
+    };
+    const KEYS = Object.keys(VARIANTS);
+
+    const SAMPLE = [
+      {
+        name: "Ultrawide play",
+        monitor: "Monitor 1 (3440×1440)",
+        geom: "0,0 · 3440×1440",
+        blackOverlay: true,
+        hideTaskbar: true,
+        matchers: [
+          { title: "Cyberpunk 2077", exe: "Cyberpunk2077.exe", matchType: "Exact", auto: true },
+          { title: "ELDEN RING", exe: "eldenring.exe", matchType: "Contains", auto: false },
+        ],
+      },
+      {
+        name: "Couch 1080p",
+        monitor: "Monitor 2 (1920×1080)",
+        geom: "100,40 · 1720×980",
+        blackOverlay: false,
+        hideTaskbar: true,
+        matchers: [
+          { title: "Hades II", exe: "Hades2.exe", matchType: "Exact", auto: false },
+        ],
+      },
+      {
+        name: "Empty draft",
+        monitor: "Monitor 1 (3440×1440)",
+        geom: "0,0 · 2560×1440",
+        blackOverlay: false,
+        hideTaskbar: false,
+        matchers: [],
+      },
+    ];
+
+    let selectedIdx = 0;
+    let showModal = false;
+
+    function qsVariant() {
+      const v = new URLSearchParams(location.search).get("variant") || "A";
+      return KEYS.includes(v) ? v : "A";
+    }
+    function setVariant(v) {
+      const url = new URL(location.href);
+      url.searchParams.set("variant", v);
+      history.replaceState(null, "", url);
+      render();
+    }
+    function cycle(dir) {
+      const i = KEYS.indexOf(qsVariant());
+      setVariant(KEYS[(i + dir + KEYS.length) % KEYS.length]);
+    }
+
+    function layoutApplyDisabled(layout) {
+      return layout.matchers.length === 0 || layout.matchers.every(m => m.auto);
+    }
+
+    function renderA() {
+      const rows = SAMPLE.map((L, i) => `
+        <div class="a-row">
+          <div>
+            <div class="name">${L.name} <span class="badge">${L.matchers.length} matcher${L.matchers.length === 1 ? "" : "s"}</span></div>
+            <div class="sub">${L.monitor} · ${L.geom}</div>
+          </div>
+          <div class="a-actions">
+            <button class="btn" ${layoutApplyDisabled(L) ? "disabled" : ""} title="Apply non-auto matchers">Apply</button>
+            <button class="btn" ${layoutApplyDisabled(L) ? "disabled" : ""}>Restore</button>
+            <button class="btn icon" data-edit="${i}" title="Edit">✎</button>
+            <button class="btn icon danger" title="Delete">🗑</button>
+          </div>
+        </div>`).join("");
+
+      let modal = "";
+      if (showModal) {
+        const L = SAMPLE[selectedIdx];
+        const matchers = L.matchers.map(m => `
+          <div class="matcher-row">
+            <div>
+              <div class="title">${m.title}</div>
+              <div class="exe">${m.exe}</div>
+            </div>
+            <div class="ctrls">
+              <select><option ${m.matchType==="Exact"?"selected":""}>Exact</option><option ${m.matchType==="Contains"?"selected":""}>Contains</option><option>Regex</option></select>
+              <label class="check"><input type="checkbox" ${m.auto?"checked":""}/> Auto Apply</label>
+              <button class="btn" ${m.auto?"disabled":""}>Apply</button>
+              <button class="btn" ${m.auto?"disabled":""}>Restore</button>
+              <button class="btn icon danger">✕</button>
+            </div>
+          </div>`).join("") || `<p class="muted">No matchers yet — add one from a running window.</p>`;
+
+        modal = `
+          <div class="modal-back" id="modal-back">
+            <div class="modal" role="dialog">
+              <h3>Edit Layout Config — ${L.name}</h3>
+              <div class="field"><span>Name</span><input type="text" value="${L.name}"/></div>
+              <div class="field" style="margin-top:8px"><span>Display</span>
+                <select><option selected>${L.monitor}</option><option>Monitor 2 (1920×1080)</option></select>
+              </div>
+              <div class="grid2" style="margin-top:8px">
+                <div class="field"><span>X Offset</span><input type="number" value="0"/></div>
+                <div class="field"><span>Y Offset</span><input type="number" value="0"/></div>
+                <div class="field"><span>Width</span><input type="number" value="3440"/></div>
+                <div class="field"><span>Height</span><input type="number" value="1440"/></div>
+              </div>
+              <div style="margin-top:8px; display:flex; gap:14px; flex-wrap:wrap">
+                <label class="check"><input type="checkbox" ${L.blackOverlay?"checked":""}/> Black Overlay</label>
+                <label class="check"><input type="checkbox" ${L.hideTaskbar?"checked":""}/> Hide Taskbar when active</label>
+              </div>
+              <div class="section">
+                <h4>App Matchers</h4>
+                ${matchers}
+                <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap">
+                  <select style="flex:1; min-width:160px"><option>Select running window…</option><option>Notepad — notepad.exe</option><option>Discord — Discord.exe</option></select>
+                  <label class="check"><input type="checkbox" checked/> Filter borderless</label>
+                  <button class="btn">Add</button>
+                </div>
+              </div>
+              <div class="modal-foot">
+                <button class="btn" id="modal-cancel">Cancel</button>
+                <button class="btn primary">Save</button>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      return `
+        <div class="a-wrap">
+          <div class="a-list">${rows}</div>
+          <div class="a-footer"><button class="btn primary" style="width:100%" id="a-create">Create New Layout Config</button></div>
+          ${modal}
+        </div>`;
+    }
+
+    function renderB() {
+      const L = SAMPLE[selectedIdx];
+      const side = SAMPLE.map((x, i) => `
+        <div class="b-item ${i===selectedIdx?"active":""}" data-sel="${i}">
+          <span class="grip" title="Drag to reorder">⠿</span>
+          <div>
+            <div class="name">${x.name}</div>
+            <div class="meta">${x.matchers.length} matcher${x.matchers.length===1?"":"s"} · ${x.geom}</div>
+          </div>
+        </div>`).join("");
+
+      const rows = L.matchers.map(m => `
+        <tr>
+          <td><strong>${m.title}</strong><div class="muted" style="font-size:11px">${m.exe}</div></td>
+          <td><select><option ${m.matchType==="Exact"?"selected":""}>Exact</option><option ${m.matchType==="Contains"?"selected":""}>Contains</option><option>Regex</option></select></td>
+          <td><label class="check"><input type="checkbox" ${m.auto?"checked":""}/> Auto</label></td>
+          <td>
+            <button class="btn" ${m.auto?"disabled":""}>Apply</button>
+            <button class="btn" ${m.auto?"disabled":""}>Restore</button>
+            <button class="btn icon danger">✕</button>
+          </td>
+        </tr>`).join("") || `<tr><td colspan="4" class="muted">No matchers — add from a running window below.</td></tr>`;
+
+      return `
+        <div class="b-wrap">
+          <div class="b-side">
+            <div class="b-side-head">
+              <button class="btn primary" style="flex:1" id="b-create">+ New</button>
+            </div>
+            <div class="b-side-list">${side}</div>
+          </div>
+          <div class="b-main">
+            <h3>${L.name}</h3>
+            <div class="b-toolbar">
+              <button class="btn primary" ${layoutApplyDisabled(L)?"disabled":""}>Apply layout</button>
+              <button class="btn" ${layoutApplyDisabled(L)?"disabled":""}>Restore layout</button>
+              <button class="btn danger" style="margin-left:auto">Delete</button>
+            </div>
+            <div class="field"><span>Name</span><input type="text" value="${L.name}"/></div>
+            <div class="field"><span>Display</span><select><option selected>${L.monitor}</option></select></div>
+            <div class="grid2">
+              <div class="field"><span>X Offset</span><input type="number" value="0"/></div>
+              <div class="field"><span>Y Offset</span><input type="number" value="0"/></div>
+              <div class="field"><span>Width</span><input type="number" value="3440"/></div>
+              <div class="field"><span>Height</span><input type="number" value="1440"/></div>
+            </div>
+            <div style="display:flex; gap:14px">
+              <label class="check"><input type="checkbox" ${L.blackOverlay?"checked":""}/> Black Overlay</label>
+              <label class="check"><input type="checkbox" ${L.hideTaskbar?"checked":""}/> Hide Taskbar when active</label>
+            </div>
+            <div>
+              <div style="font-weight:600; margin-bottom:6px">App Matchers</div>
+              <div class="b-matchers">
+                <table>
+                  <thead><tr><th>Window</th><th>Match Type</th><th>Auto Apply</th><th></th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+                <div class="b-add">
+                  <select style="flex:1"><option>Select running window…</option><option>Notepad — notepad.exe</option></select>
+                  <label class="check"><input type="checkbox" checked/> Filter borderless</label>
+                  <button class="btn">Add</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderC() {
+      const L = SAMPLE[selectedIdx];
+      const chips = SAMPLE.map((x, i) => `
+        <button type="button" class="c-chip ${i===selectedIdx?"active":""}" data-sel="${i}">
+          <span class="name">${x.name}</span>
+          <span class="meta">${x.matchers.length} · ${x.geom}</span>
+        </button>`).join("") + `<button type="button" class="c-chip add" id="c-create">+ New layout</button>`;
+
+      const matchers = L.matchers.map(m => `
+        <div class="c-matcher">
+          <div class="c-matcher-top">
+            <div>
+              <strong>${m.title}</strong>
+              <div class="muted" style="font-size:11px">${m.exe}</div>
+            </div>
+            <button class="btn icon danger">✕</button>
+          </div>
+          <div class="c-matcher-bot">
+            <select><option ${m.matchType==="Exact"?"selected":""}>Exact</option><option ${m.matchType==="Contains"?"selected":""}>Contains</option><option>Regex</option></select>
+            <label class="check"><input type="checkbox" ${m.auto?"checked":""}/> Auto Apply</label>
+            <span style="flex:1"></span>
+            <button class="btn" ${m.auto?"disabled":""}>Apply</button>
+            <button class="btn" ${m.auto?"disabled":""}>Restore</button>
+          </div>
+        </div>`).join("") || `<p class="muted">No App Matchers on this layout yet.</p>`;
+
+      return `
+        <div class="c-wrap">
+          <div class="c-strip">${chips}</div>
+          <div class="c-editor">
+            <div class="c-card">
+              <h4>Geometry &amp; flags</h4>
+              <div class="field"><span>Name</span><input type="text" value="${L.name}"/></div>
+              <div class="field"><span>Display</span><select><option selected>${L.monitor}</option></select></div>
+              <div class="grid2">
+                <div class="field"><span>X</span><input type="number" value="0"/></div>
+                <div class="field"><span>Y</span><input type="number" value="0"/></div>
+                <div class="field"><span>W</span><input type="number" value="3440"/></div>
+                <div class="field"><span>H</span><input type="number" value="1440"/></div>
+              </div>
+              <label class="check"><input type="checkbox" ${L.blackOverlay?"checked":""}/> Black Overlay</label>
+              <label class="check"><input type="checkbox" ${L.hideTaskbar?"checked":""}/> Hide Taskbar when active</label>
+              <div class="c-big-actions">
+                <button class="btn primary" ${layoutApplyDisabled(L)?"disabled":""}>Apply</button>
+                <button class="btn" ${layoutApplyDisabled(L)?"disabled":""}>Restore</button>
+              </div>
+              <button class="btn danger">Delete layout</button>
+            </div>
+            <div class="c-card">
+              <h4>App Matchers</h4>
+              ${matchers}
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:auto">
+                <select style="flex:1; min-width:140px"><option>Select running window…</option><option>Discord — Discord.exe</option></select>
+                <label class="check"><input type="checkbox" checked/> Filter borderless</label>
+                <button class="btn primary">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function wire() {
+      document.querySelectorAll("[data-sel]").forEach(el => {
+        el.addEventListener("click", () => { selectedIdx = +el.dataset.sel; render(); });
+      });
+      document.querySelectorAll("[data-edit]").forEach(el => {
+        el.addEventListener("click", () => { selectedIdx = +el.dataset.edit; showModal = true; render(); });
+      });
+      const cancel = document.getElementById("modal-cancel");
+      if (cancel) cancel.addEventListener("click", () => { showModal = false; render(); });
+      const back = document.getElementById("modal-back");
+      if (back) back.addEventListener("click", e => { if (e.target === back) { showModal = false; render(); } });
+      ["a-create","b-create","c-create"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("click", () => {
+          selectedIdx = 0;
+          if (qsVariant() === "A") { showModal = true; }
+          render();
+        });
+      });
+    }
+
+    function render() {
+      const v = qsVariant();
+      const meta = VARIANTS[v];
+      document.getElementById("hint").textContent =
+        `PROTOTYPE variant ${v}: ${meta.name}. Apply/Restore disable rules from closed ticket (all-auto → layout disabled; per-matcher Auto disables that row).`;
+      document.getElementById("switcher-label").innerHTML =
+        `<strong>${v} — ${meta.name}</strong><small>${meta.desc}</small>`;
+      const body = document.getElementById("body");
+      if (v === "A") body.innerHTML = renderA();
+      else if (v === "B") body.innerHTML = renderB();
+      else body.innerHTML = renderC();
+      wire();
+    }
+
+    document.getElementById("prev").onclick = () => cycle(-1);
+    document.getElementById("next").onclick = () => cycle(1);
+    document.addEventListener("keydown", e => {
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft") cycle(-1);
+      if (e.key === "ArrowRight") cycle(1);
+    });
+
+    render();
+  </script>
+</body>
+</html>
