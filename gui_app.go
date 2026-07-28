@@ -273,6 +273,7 @@ func buildApp(settings *Settings) fyne.App {
 
 	appTabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Apps", theme.ListIcon(), content),
+		container.NewTabItemWithIcon("Layouts", theme.GridIcon(), buildLayoutsTab(mainWindow, settings)),
 		container.NewTabItemWithIcon("Defaults", theme.ViewRestoreIcon(), buildDefaultsTab(settings)),
 		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), buildSettingsTab(settings)),
 	)
@@ -285,7 +286,7 @@ func buildApp(settings *Settings) fyne.App {
 		appTabs,
 	), mainWindow.Canvas()))
 	mainWindow.CenterOnScreen()
-	mainWindow.Resize(fyne.NewSquareSize(620))
+	mainWindow.Resize(fyne.NewSize(700, 620))
 	mainWindow.SetFixedSize(true)
 
 	fmt.Println("Running app...")

@@ -206,3 +206,25 @@ func (settings *Settings) AddApp(app AppConfig) {
 func (settings *Settings) RemoveApp(appConfigIdx int) {
 	settings.Apps = slices.Delete(settings.Apps, appConfigIdx, appConfigIdx+1)
 }
+
+func (settings *Settings) AddLayout(layout LayoutConfig) {
+	if layout.Matchers == nil {
+		layout.Matchers = make([]AppMatcher, 0)
+	}
+	sortMatchers(layout.Matchers)
+	settings.Layouts = append(settings.Layouts, layout)
+}
+
+func (settings *Settings) RemoveLayout(layoutIdx int) {
+	settings.Layouts = slices.Delete(settings.Layouts, layoutIdx, layoutIdx+1)
+}
+
+// MoveLayout swaps a layout with its neighbor. delta must be -1 (up) or +1 (down);
+// moves past either end are no-ops.
+func (settings *Settings) MoveLayout(layoutIdx int, delta int) {
+	newIdx := layoutIdx + delta
+	if layoutIdx < 0 || layoutIdx >= len(settings.Layouts) || newIdx < 0 || newIdx >= len(settings.Layouts) {
+		return
+	}
+	settings.Layouts[layoutIdx], settings.Layouts[newIdx] = settings.Layouts[newIdx], settings.Layouts[layoutIdx]
+}

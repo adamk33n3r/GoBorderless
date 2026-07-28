@@ -67,11 +67,17 @@ func setOnFocusChanged(entry *widget.Entry, onFocusChanged func(focused bool)) {
 }
 
 func getWindowsForSelect(allWindows []Window) []Window {
+	filterBorderless := filterApplications != nil && filterApplications.Checked
+	return windowsForSelect(allWindows, filterBorderless)
+}
+
+// windowsForSelect returns running windows for a picker, optionally dropping
+// borderless ones, sorted case-insensitively by display string.
+func windowsForSelect(allWindows []Window, filterBorderless bool) []Window {
 	filteredWindows := make([]Window, 0, len(allWindows))
 	// Filter out windows that don't have normal borders cause they're probably not "real" windows
 	// This will also filter out windows that we've already removed borders from
-	// Perhaps we should also check the list of existing configs?
-	if filterApplications.Checked {
+	if filterBorderless {
 		for _, window := range allWindows {
 			if !isBorderlessStyle(getWindowStyle(window.hwnd)) {
 				filteredWindows = append(filteredWindows, window)
