@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/adamk33n3r/GoBorderless/rx"
 	"github.com/adamk33n3r/GoBorderless/ui"
+	fynetooltip "github.com/dweymouth/fyne-tooltip"
+	ttwidget "github.com/dweymouth/fyne-tooltip/widget"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -18,6 +21,17 @@ import (
 
 func launchLayoutConfigDialog(parent fyne.Window, isNew bool, settings *Settings, layoutIdx int, draft LayoutConfig, onClose func(saved *LayoutConfig)) {
 	d := makeLayoutConfigWindow(settings, draft, isNew, layoutIdx, parent, onClose)
+	// fyne-tooltip docs: AddPopUpToolTipLayer after creating the PopUp, before Show.
+	// Fyne dialogs hide the ModalPopUp, so we reach it via customDialogPopUp.
+	// Do not wrap/re-center Content afterward — that desyncs the PopUp background
+	// from the dialog card (ghost layer / offset).
+	pop := customDialogPopUp(d)
+	if pop != nil {
+		fynetooltip.AddPopUpToolTipLayer(pop)
+		d.SetOnClosed(func() {
+			fynetooltip.DestroyPopUpToolTipLayer(pop)
+		})
+	}
 	d.Resize(fyne.NewSize(560, 580))
 	d.Show()
 }
@@ -56,7 +70,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 
 	nameEntry := widget.NewEntry()
 	nameEntry.SetPlaceHolder("Layout name")
-	nameEntry.SetText(draft.Name)
 	nameEntry.OnChanged = func(s string) {
 		draft.Name = s
 		setConfirmState()
@@ -71,7 +84,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 		setConfirmState()
 	})
 	displaySelect.PlaceHolder = "Select Display"
-	displaySelect.SetSelectedIndex(monitorIdx)
 
 	xOffsetText := widget.NewEntry()
 	xOffsetText.Validator = intValidator
@@ -84,7 +96,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			xOffsetText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	xOffsetText.SetText(strconv.Itoa(int(draft.OffsetX)))
 
 	yOffsetText := widget.NewEntry()
 	yOffsetText.Validator = intValidator
@@ -97,7 +108,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			yOffsetText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	yOffsetText.SetText(strconv.Itoa(int(draft.OffsetY)))
 
 	widthText := widget.NewEntry()
 	widthText.Validator = intValidator
@@ -110,7 +120,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			widthText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	widthText.SetText(strconv.Itoa(int(draft.Width)))
 
 	heightText := widget.NewEntry()
 	heightText.Validator = intValidator
@@ -123,29 +132,25 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			heightText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	heightText.SetText(strconv.Itoa(int(draft.Height)))
 
-	textGrid := container.NewGridWithRows(2,
-		container.NewGridWithColumns(2,
-			container.NewVBox(widget.NewLabel("X Offset:"), xOffsetText),
-			container.NewVBox(widget.NewLabel("Y Offset:"), yOffsetText),
-		),
-		container.NewGridWithColumns(2,
-			container.NewVBox(widget.NewLabel("Width:"), widthText),
-			container.NewVBox(widget.NewLabel("Height:"), heightText),
-		),
+	labeledEntry := func(label string, entry *widget.Entry) fyne.CanvasObject {
+		return container.NewBorder(nil, nil, widget.NewLabel(label), nil, entry)
+	}
+	textGrid := container.NewGridWithColumns(2,
+		labeledEntry("X Offset", xOffsetText),
+		labeledEntry("Y Offset", yOffsetText),
+		labeledEntry("Width", widthText),
+		labeledEntry("Height", heightText),
 	)
 
 	blackOverlayCheck := widget.NewCheck("Black Overlay", func(checked bool) {
 		draft.BlackOverlay = checked
 	})
-	blackOverlayCheck.SetChecked(draft.BlackOverlay)
-
 	hideTaskbarCheck := widget.NewCheck("Hide Taskbar when active", func(checked bool) {
 		draft.HideTaskbar = checked
 	})
-	hideTaskbarCheck.SetChecked(draft.HideTaskbar)
 
+	// Assigned before SetText/SetSelectedIndex: those fire OnChanged immediately.
 	setConfirmState = func() {
 		valid := layoutNameValid(draft.Name) &&
 			displaySelect.Selected != nil &&
@@ -159,6 +164,15 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			confirmButton.Disable()
 		}
 	}
+
+	nameEntry.SetText(draft.Name)
+	displaySelect.SetSelectedIndex(monitorIdx)
+	xOffsetText.SetText(strconv.Itoa(int(draft.OffsetX)))
+	yOffsetText.SetText(strconv.Itoa(int(draft.OffsetY)))
+	widthText.SetText(strconv.Itoa(int(draft.Width)))
+	heightText.SetText(strconv.Itoa(int(draft.Height)))
+	blackOverlayCheck.SetChecked(draft.BlackOverlay)
+	hideTaskbarCheck.SetChecked(draft.HideTaskbar)
 
 	matcherBox = container.NewVBox()
 	refreshMatchers = func() {
@@ -174,7 +188,7 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 		matcherBox.Refresh()
 	}
 
-	filterBorderless := widget.NewCheck("Filter out borderless applications", nil)
+	filterBorderless := widget.NewCheck("Filter borderless", nil)
 	filterBorderless.SetChecked(true)
 
 	currentWindowsMutex.Lock()
@@ -196,7 +210,7 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 		windowSelect.SetOptions(windowsOpts)
 	}
 
-	addMatcherBtn := widget.NewButtonWithIcon("Add Matcher", theme.ContentAddIcon(), func() {
+	addMatcherBtn := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), func() {
 		if windowSelect.Selected == nil {
 			return
 		}
@@ -227,12 +241,10 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 	refreshMatchers()
 	setConfirmState()
 
+	addMatcherRow := container.NewBorder(nil, nil, filterBorderless, addMatcherBtn, windowSelect)
 	matchersSection := container.NewBorder(
-		widget.NewLabel("App Matchers"),
-		container.NewVBox(
-			filterBorderless,
-			container.NewBorder(nil, nil, nil, addMatcherBtn, windowSelect),
-		),
+		container.NewVBox(widget.NewLabel("App Matchers"), addMatcherRow),
+		nil,
 		nil,
 		nil,
 		container.NewVScroll(matcherBox),
@@ -240,13 +252,10 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 
 	content := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabel("Name"),
 			nameEntry,
 			displaySelect,
-			hideTaskbarCheck,
+			container.NewHBox(hideTaskbarCheck, blackOverlayCheck),
 			textGrid,
-			blackOverlayCheck,
-			widget.NewSeparator(),
 		),
 		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),
 		nil,
@@ -268,11 +277,10 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 func buildMatcherEditorRow(settings *Settings, draft *LayoutConfig, layoutIdx, idx int, onRemoved func()) fyne.CanvasObject {
 	matcher := draft.Matchers[idx]
 
-	title := widget.NewLabel(matcher.WindowName)
-	title.TextStyle.Bold = true
+	display := fmt.Sprintf("%s | %s", matcher.WindowName, matcher.ExePath)
+	title := ttwidget.NewLabel(display)
+	title.SetToolTip(display)
 	title.Truncation = fyne.TextTruncateEllipsis
-	exe := widget.NewLabel(matcher.ExePath)
-	exe.Truncation = fyne.TextTruncateEllipsis
 
 	applyBtn := widget.NewButtonWithIcon("", theme.ViewFullScreenIcon(), nil)
 	restoreBtn := widget.NewButtonWithIcon("", theme.ViewRestoreIcon(), nil)
@@ -334,10 +342,7 @@ func buildMatcherEditorRow(settings *Settings, draft *LayoutConfig, layoutIdx, i
 	})
 
 	controls := container.NewHBox(matchSelect, autoApply, applyBtn, restoreBtn, removeBtn)
-	return container.NewVBox(
-		container.NewBorder(nil, nil, nil, controls, container.NewVBox(title, exe)),
-		widget.NewSeparator(),
-	)
+	return container.NewBorder(nil, nil, nil, controls, title)
 }
 
 func updateMatcherActionButtons(applyBtn, restoreBtn *widget.Button, autoApply bool) {

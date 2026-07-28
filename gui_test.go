@@ -8,8 +8,10 @@ import (
 	"testing"
 
 	"github.com/adamk33n3r/GoBorderless/ui"
+	fynetooltip "github.com/dweymouth/fyne-tooltip"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -20,6 +22,46 @@ import (
 func TestMain(m *testing.M) {
 	test.NewApp()
 	os.Exit(m.Run())
+}
+
+func TestMakeLayoutConfigWindowDoesNotPanicOnCreate(t *testing.T) {
+	useMonitors(t, []Monitor{{number: 1, isPrimary: true, width: 1920, height: 1080}})
+	settings := newSettings()
+	settings.Defaults = AppConfigDefaults{
+		Monitor: 1, Width: 1920, Height: 1080,
+	}
+	parent := test.NewTempWindow(t, nil)
+
+	// SetSelectedIndex fires OnChanged during construction; that must not
+	// call a still-nil setConfirmState (regression from the Create New crash).
+	dialog := makeLayoutConfigWindow(settings, newLayoutFromDefaults(settings), true, -1, parent, func(*LayoutConfig) {})
+	if dialog == nil {
+		t.Fatal("makeLayoutConfigWindow returned nil")
+	}
+	dialog.Hide()
+}
+
+// fyne-tooltip requires AddPopUpToolTipLayer on the dialog's ModalPopUp before
+// Show (and a window tool tip layer on the parent canvas first). Calling it
+// after Show or re-centering Content desyncs the PopUp background from the
+// dialog card.
+func TestCustomDialogPopUpAllowsTooltipLayerBeforeShow(t *testing.T) {
+	parent := test.NewTempWindow(t, nil)
+	parent.SetContent(fynetooltip.AddWindowToolTipLayer(widget.NewLabel(""), parent.Canvas()))
+	t.Cleanup(func() { fynetooltip.DestroyWindowToolTipLayer(parent.Canvas()) })
+
+	d := dialog.NewCustomWithoutButtons("Test", widget.NewLabel("body"), parent)
+
+	pop := customDialogPopUp(d)
+	if pop == nil {
+		t.Fatal("customDialogPopUp returned nil; cannot attach tooltip layer before Show")
+	}
+	fynetooltip.AddPopUpToolTipLayer(pop)
+
+	d.Resize(fyne.NewSize(200, 150))
+	d.Show()
+	d.Hide()
+	fynetooltip.DestroyPopUpToolTipLayer(pop)
 }
 
 func TestIntValidator(t *testing.T) {

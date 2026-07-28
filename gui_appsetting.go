@@ -66,6 +66,26 @@ func setOnFocusChanged(entry *widget.Entry, onFocusChanged func(focused bool)) {
 	setViaReflect(entry, "onFocusChanged", reflect.ValueOf(onFocusChanged))
 }
 
+// customDialogPopUp returns the unexported ModalPopUp behind a Fyne CustomDialog.
+// Needed so callers can run fynetooltip.AddPopUpToolTipLayer before Show, as the
+// fyne-tooltip docs require — dialog does not expose the PopUp.
+func customDialogPopUp(d *dialog.CustomDialog) *widget.PopUp {
+	if d == nil {
+		return nil
+	}
+	embed := reflect.ValueOf(d).Elem().Field(0) // embedded *dialog
+	if !embed.IsValid() || embed.IsNil() {
+		return nil
+	}
+	winField := embed.Elem().FieldByName("win")
+	if !winField.IsValid() || winField.IsNil() {
+		return nil
+	}
+	win := reflect.NewAt(winField.Type(), unsafe.Pointer(winField.UnsafeAddr())).Elem()
+	pop, _ := win.Interface().(*widget.PopUp)
+	return pop
+}
+
 func getWindowsForSelect(allWindows []Window) []Window {
 	filterBorderless := filterApplications != nil && filterApplications.Checked
 	return windowsForSelect(allWindows, filterBorderless)
@@ -116,7 +136,7 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		confirmButton.SetText("Save")
 	}
 
-	filterApplications = widget.NewCheck("Filter out borderless applications", func(checked bool) {
+	filterApplications = widget.NewCheck("Filter borderless", func(checked bool) {
 		applicationSelect.SetOptions(getWindowsForSelect(currentWindows))
 	})
 
@@ -178,8 +198,6 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		hideTaskbarCheck.SetChecked(appSetting.HideTaskbar)
 	}
 
-	// Textboxes with labels
-	xOffsetLabel := widget.NewLabel("X Offset:")
 	xOffsetText = widget.NewEntry()
 	xOffsetText.Validator = intValidator
 	xOffsetText.OnChanged = func(s string) {
@@ -199,7 +217,6 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		xOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetX)))
 	}
 
-	yOffsetLabel := widget.NewLabel("Y Offset:")
 	yOffsetText = widget.NewEntry()
 	yOffsetText.Validator = intValidator
 	yOffsetText.OnChanged = func(s string) {
@@ -219,7 +236,6 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		yOffsetText.SetText(strconv.Itoa(int(appSetting.OffsetY)))
 	}
 
-	widthLabel := widget.NewLabel("Width:")
 	widthText = widget.NewEntry()
 	widthText.Validator = intValidator
 	widthText.OnChanged = func(s string) {
@@ -239,7 +255,6 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		widthText.SetText(strconv.Itoa(int(appSetting.Width)))
 	}
 
-	heightLabel := widget.NewLabel("Height:")
 	heightText = widget.NewEntry()
 	heightText.Validator = intValidator
 	heightText.OnChanged = func(s string) {
@@ -259,16 +274,14 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 		heightText.SetText(strconv.Itoa(int(appSetting.Height)))
 	}
 
-	// 2x2 grid for labeled textboxes
-	textGrid := container.NewGridWithRows(2,
-		container.NewGridWithColumns(2,
-			container.NewVBox(xOffsetLabel, xOffsetText),
-			container.NewVBox(yOffsetLabel, yOffsetText),
-		),
-		container.NewGridWithColumns(2,
-			container.NewVBox(widthLabel, widthText),
-			container.NewVBox(heightLabel, heightText),
-		),
+	labeledEntry := func(label string, entry *widget.Entry) fyne.CanvasObject {
+		return container.NewBorder(nil, nil, widget.NewLabel(label), nil, entry)
+	}
+	textGrid := container.NewGridWithColumns(2,
+		labeledEntry("X Offset", xOffsetText),
+		labeledEntry("Y Offset", yOffsetText),
+		labeledEntry("Width", widthText),
+		labeledEntry("Height", heightText),
 	)
 
 	blackOverlayDefault := settings.Defaults.BlackOverlay
@@ -303,16 +316,15 @@ func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, 
 
 	content := container.NewVBox(
 		displaySelect,
-		widget.NewLabel("Match Type"),
 		matchType,
-		hideTaskbarCheck,
+		container.NewHBox(hideTaskbarCheck, blackOverlayCheck),
 		textGrid,
-		blackOverlayCheck,
-		widget.NewLabel(""), // spacer
 		container.NewHBox(cancelButton, layout.NewSpacer(), confirmButton),
 	)
 	if isNew {
-		content.Objects = append([]fyne.CanvasObject{applicationSelect, filterApplications}, content.Objects...)
+		content.Objects = append([]fyne.CanvasObject{
+			container.NewBorder(nil, nil, filterApplications, nil, applicationSelect),
+		}, content.Objects...)
 	}
 
 	dialogName := "New App Config"
