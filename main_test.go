@@ -33,26 +33,26 @@ func TestMatchWindow(t *testing.T) {
 	tests := []struct {
 		name      string
 		matchType MatchType
-		setting   AppConfig
+		matcher   AppMatcher
 		want      bool
 	}{
-		{"title matches", MatchWindowTitle, AppConfig{AppMatcher: AppMatcher{WindowName: title, ExePath: `C:\other.exe`}}, true},
-		{"title differs", MatchWindowTitle, AppConfig{AppMatcher: AppMatcher{WindowName: "Other", ExePath: exe}}, false},
-		{"exe matches", MatchExePath, AppConfig{AppMatcher: AppMatcher{WindowName: "Other", ExePath: exe}}, true},
-		{"exe differs", MatchExePath, AppConfig{AppMatcher: AppMatcher{WindowName: title, ExePath: `C:\other.exe`}}, false},
-		{"both match", MatchBoth, AppConfig{AppMatcher: AppMatcher{WindowName: title, ExePath: exe}}, true},
-		{"both: only title", MatchBoth, AppConfig{AppMatcher: AppMatcher{WindowName: title, ExePath: `C:\other.exe`}}, false},
-		{"both: only exe", MatchBoth, AppConfig{AppMatcher: AppMatcher{WindowName: "Other", ExePath: exe}}, false},
-		{"either: only title", MatchEither, AppConfig{AppMatcher: AppMatcher{WindowName: title, ExePath: `C:\other.exe`}}, true},
-		{"either: only exe", MatchEither, AppConfig{AppMatcher: AppMatcher{WindowName: "Other", ExePath: exe}}, true},
-		{"either: neither", MatchEither, AppConfig{AppMatcher: AppMatcher{WindowName: "Other", ExePath: `C:\other.exe`}}, false},
+		{"title matches", MatchWindowTitle, AppMatcher{WindowName: title, ExePath: `C:\other.exe`}, true},
+		{"title differs", MatchWindowTitle, AppMatcher{WindowName: "Other", ExePath: exe}, false},
+		{"exe matches", MatchExePath, AppMatcher{WindowName: "Other", ExePath: exe}, true},
+		{"exe differs", MatchExePath, AppMatcher{WindowName: title, ExePath: `C:\other.exe`}, false},
+		{"both match", MatchBoth, AppMatcher{WindowName: title, ExePath: exe}, true},
+		{"both: only title", MatchBoth, AppMatcher{WindowName: title, ExePath: `C:\other.exe`}, false},
+		{"both: only exe", MatchBoth, AppMatcher{WindowName: "Other", ExePath: exe}, false},
+		{"either: only title", MatchEither, AppMatcher{WindowName: title, ExePath: `C:\other.exe`}, true},
+		{"either: only exe", MatchEither, AppMatcher{WindowName: "Other", ExePath: exe}, true},
+		{"either: neither", MatchEither, AppMatcher{WindowName: "Other", ExePath: `C:\other.exe`}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setting := tt.setting
-			setting.MatchType = tt.matchType
-			if got := matchWindow(window, setting); got != tt.want {
+			matcher := tt.matcher
+			matcher.MatchType = tt.matchType
+			if got := matchWindow(window, matcher); got != tt.want {
 				t.Errorf("matchWindow() = %v, want %v", got, tt.want)
 			}
 		})
@@ -64,36 +64,36 @@ func TestMatchWindow(t *testing.T) {
 func TestMatchWindowIsExact(t *testing.T) {
 	window := Window{title: "Game", exePath: `C:\Games\game.exe`}
 
-	for _, setting := range []AppConfig{
-		{AppMatcher: AppMatcher{WindowName: "game", MatchType: MatchWindowTitle}},
-		{AppMatcher: AppMatcher{WindowName: "Game ", MatchType: MatchWindowTitle}},
-		{AppMatcher: AppMatcher{WindowName: "Gam", MatchType: MatchWindowTitle}},
-		{AppMatcher: AppMatcher{ExePath: `c:\games\game.exe`, MatchType: MatchExePath}},
-		{AppMatcher: AppMatcher{ExePath: `C:\Games\`, MatchType: MatchExePath}},
+	for _, matcher := range []AppMatcher{
+		{WindowName: "game", MatchType: MatchWindowTitle},
+		{WindowName: "Game ", MatchType: MatchWindowTitle},
+		{WindowName: "Gam", MatchType: MatchWindowTitle},
+		{ExePath: `c:\games\game.exe`, MatchType: MatchExePath},
+		{ExePath: `C:\Games\`, MatchType: MatchExePath},
 	} {
-		if matchWindow(window, setting) {
-			t.Errorf("matchWindow() matched %+v, want no match", setting)
+		if matchWindow(window, matcher) {
+			t.Errorf("matchWindow() matched %+v, want no match", matcher)
 		}
 	}
 }
 
 func TestMatchWindowUnknownMatchType(t *testing.T) {
 	window := Window{title: "Game", exePath: `C:\game.exe`}
-	setting := AppConfig{AppMatcher: AppMatcher{WindowName: "Game", ExePath: `C:\game.exe`, MatchType: MatchType(99)}}
+	matcher := AppMatcher{WindowName: "Game", ExePath: `C:\game.exe`, MatchType: MatchType(99)}
 
-	if matchWindow(window, setting) {
+	if matchWindow(window, matcher) {
 		t.Error("an unrecognised match type must never match")
 	}
 }
 
-// An empty config would otherwise match every untitled window, which is how a
+// An empty matcher would otherwise match every untitled window, which is how a
 // half-filled dialog could hijack unrelated windows.
 func TestMatchWindowEmptySettingDoesNotMatchRealWindow(t *testing.T) {
 	window := Window{title: "Game", exePath: `C:\game.exe`}
 
 	for _, matchType := range []MatchType{MatchWindowTitle, MatchExePath, MatchBoth, MatchEither} {
-		if matchWindow(window, AppConfig{AppMatcher: AppMatcher{MatchType: matchType}}) {
-			t.Errorf("empty setting with %v matched a real window", matchType)
+		if matchWindow(window, AppMatcher{MatchType: matchType}) {
+			t.Errorf("empty matcher with %v matched a real window", matchType)
 		}
 	}
 }

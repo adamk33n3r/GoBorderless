@@ -42,39 +42,39 @@ func restoredStyle(style int32) int32 {
  * Where a config wants its window: offsets are relative to the chosen monitor's
  * top left corner, not to the desktop origin.
  */
-func borderlessRect(appSetting AppConfig, monitor Monitor) (x, y, width, height int32) {
-	return appSetting.OffsetX + monitor.left, appSetting.OffsetY + monitor.top, appSetting.Width, appSetting.Height
+func borderlessRect(payload ApplyPayload, monitor Monitor) (x, y, width, height int32) {
+	return payload.OffsetX + monitor.left, payload.OffsetY + monitor.top, payload.Width, payload.Height
 }
 
-func makeBorderless(window Window, appSetting AppConfig) {
+func makeBorderless(window Window, payload ApplyPayload) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
 	// Monitor is 1-based; 0 means unset and out-of-range would panic on index.
-	idx := appSetting.Monitor - 1
+	idx := payload.Monitor - 1
 	if idx < 0 || idx >= len(monitors) {
 		return
 	}
-	x, y, width, height := borderlessRect(appSetting, monitors[idx])
+	x, y, width, height := borderlessRect(payload, monitors[idx])
 	setWindowPos(window.hwnd, x, y, width, height)
 
-	if appSetting.BlackOverlay {
-		createOverlay(window.hwnd, appSetting)
+	if payload.BlackOverlay {
+		createOverlay(window.hwnd, payload)
 	}
 }
 
 /**
  * Only restores the window if it's borderless
  */
-func restoreWindow(window Window, appSetting AppConfig) {
+func restoreWindow(window Window, payload ApplyPayload) {
 	if !isBorderless(window) {
 		return
 	}
 	fmt.Println("Restoring window:", window.title, window.exePath)
 	setWindowStyle(window.hwnd, restoredStyle(getWindowStyle(window.hwnd)))
-	setWindowPos(window.hwnd, appSetting.PreOffsetX, appSetting.PreOffsetY, appSetting.PreWidth, appSetting.PreHeight)
+	setWindowPos(window.hwnd, payload.PreOffsetX, payload.PreOffsetY, payload.PreWidth, payload.PreHeight)
 
 	destroyOverlay(window.hwnd)
-	if appSetting.HideTaskbar {
+	if payload.HideTaskbar {
 		restoreTaskbar()
 	}
 }

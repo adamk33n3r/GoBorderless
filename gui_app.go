@@ -202,7 +202,7 @@ func buildApp(settings *Settings) fyne.App {
 		row.ApplyBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
 			fmt.Println("clicked apply for:", appSetting.Display())
-			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting.AppMatcher) })
 			if win == nil {
 				return
 			}
@@ -215,16 +215,16 @@ func buildApp(settings *Settings) fyne.App {
 				settings.Apps[lii] = appSetting
 				settings.Save()
 			}
-			makeBorderless(*win, appSetting)
+			makeBorderless(*win, applyPayloadFromApp(appSetting))
 		}
 		row.RestoreBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
 			fmt.Println("clicked undo for:", appSetting.Display())
-			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting.AppMatcher) })
 			if win == nil {
 				return
 			}
-			restoreWindow(*win, appSetting)
+			restoreWindow(*win, applyPayloadFromApp(appSetting))
 		}
 		if appSetting.AutoApply {
 			row.ApplyBtn.Disable()
@@ -243,9 +243,9 @@ func buildApp(settings *Settings) fyne.App {
 		}
 		row.DeleteBtn.OnTapped = func() {
 			appSetting := settings.Apps[lii]
-			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting) })
+			win := firstInSlice(currentWindows, func(win Window) bool { return matchWindow(win, appSetting.AppMatcher) })
 			if win != nil {
-				restoreWindow(*win, appSetting)
+				restoreWindow(*win, applyPayloadFromApp(appSetting))
 			}
 			settings.RemoveApp(lii)
 			settings.Save()

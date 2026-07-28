@@ -128,16 +128,16 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 	return 1 // continue enumeration
 }
 
-func matchWindow(win Window, appSetting AppConfig) bool {
-	switch appSetting.MatchType {
+func matchWindow(win Window, matcher AppMatcher) bool {
+	switch matcher.MatchType {
 	case MatchWindowTitle:
-		return win.title == appSetting.WindowName
+		return win.title == matcher.WindowName
 	case MatchExePath:
-		return win.exePath == appSetting.ExePath
+		return win.exePath == matcher.ExePath
 	case MatchBoth:
-		return win.title == appSetting.WindowName && win.exePath == appSetting.ExePath
+		return win.title == matcher.WindowName && win.exePath == matcher.ExePath
 	case MatchEither:
-		return win.title == appSetting.WindowName || win.exePath == appSetting.ExePath
+		return win.title == matcher.WindowName || win.exePath == matcher.ExePath
 	default:
 		return false
 	}
@@ -191,7 +191,7 @@ func scanWindows(settings *Settings) {
 				continue
 			}
 			for _, win := range windowData {
-				if matchWindow(win, appSetting) {
+				if matchWindow(win, appSetting.AppMatcher) {
 					if !isBorderless(win) {
 						originalRect := getWindowRect(win.hwnd)
 						appSetting.PreWidth = int32(originalRect.Right - originalRect.Left)
@@ -201,7 +201,7 @@ func scanWindows(settings *Settings) {
 						settings.Apps[appSettingIdx] = appSetting
 						settings.Save()
 					}
-					makeBorderless(win, appSetting)
+					makeBorderless(win, applyPayloadFromApp(appSetting))
 					// Hide taskbar as long as this app's window exists
 					if appSetting.HideTaskbar {
 						shouldHideTaskbar = true
@@ -217,7 +217,7 @@ func scanWindows(settings *Settings) {
 				continue
 			}
 			for _, win := range windowData {
-				if matchWindow(win, appSetting) && isBorderless(win) {
+				if matchWindow(win, appSetting.AppMatcher) && isBorderless(win) {
 					shouldHideTaskbar = true
 				}
 			}

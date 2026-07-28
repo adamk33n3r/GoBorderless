@@ -102,9 +102,9 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 // the goroutine starts, so duplicate calls for the same appHwnd are no-ops.
 //
 // Parameters:
-//   - appHwnd:     Handle to the target application window being made borderless.
-//   - appSetting:  The app's configuration, used to determine monitor, size, and position.
-func createOverlay(appHwnd win.HWND, appSetting AppConfig) {
+//   - appHwnd:  Handle to the target application window being made borderless.
+//   - payload:  Apply geometry/flags used to determine monitor, size, and position.
+func createOverlay(appHwnd win.HWND, payload ApplyPayload) {
 	// Ensure the Win32 window class is registered before creating any overlay windows.
 	registerOverlayClass()
 
@@ -118,7 +118,7 @@ func createOverlay(appHwnd win.HWND, appSetting AppConfig) {
 	activeOverlays[appHwnd] = &Overlay{appHwnd: appHwnd}
 	overlayMu.Unlock()
 
-	monitor := monitors[appSetting.Monitor-1]
+	monitor := monitors[payload.Monitor-1]
 
 	go func() {
 		// Win32 requires that GetMessage, window creation, and message dispatch all run
@@ -156,7 +156,7 @@ func createOverlay(appHwnd win.HWND, appSetting AppConfig) {
 		overlayMu.Unlock()
 
 		// Cut a transparent hole in the overlay region so the app window shows through.
-		applyOverlayRegion(hwnd, appSetting, monitor)
+		applyOverlayRegion(hwnd, payload, monitor)
 
 		// Position the overlay directly behind the app in z-order so it moves with the
 		// app without ever appearing above it. SWP_NOMOVE|SWP_NOSIZE keeps position/size.
@@ -181,21 +181,21 @@ func createOverlay(appHwnd win.HWND, appSetting AppConfig) {
 //
 // The overlay window is positioned at the monitor's top-left corner, so all
 // coordinates here are monitor-local (i.e. relative to the monitor origin).
-// AppConfig.OffsetX/Y are also monitor-relative (set by makeBorderless).
+// ApplyPayload.OffsetX/Y are also monitor-relative (set by makeBorderless).
 //
 // Parameters:
 //   - overlayHwnd: Handle to the overlay window whose region will be updated.
-//   - appSetting:  App configuration providing the hole's position (OffsetX/Y) and size (Width/Height).
+//   - payload:     Apply payload providing the hole's position (OffsetX/Y) and size (Width/Height).
 //   - monitor:     The monitor the overlay covers, used for the outer boundary dimensions.
-func applyOverlayRegion(overlayHwnd win.HWND, appSetting AppConfig, monitor Monitor) {
+func applyOverlayRegion(overlayHwnd win.HWND, payload ApplyPayload, monitor Monitor) {
 	// Start with a region that covers the entire monitor surface.
 	fullRgn := win.CreateRectRgn(0, 0, monitor.width, monitor.height)
 
 	// Create a rectangular region representing the app's position within the monitor.
 	// OffsetX/Y are monitor-relative, matching how makeBorderless positions the window.
-	appX := appSetting.OffsetX
-	appY := appSetting.OffsetY
-	holeRgn := win.CreateRectRgn(appX, appY, appX+appSetting.Width, appY+appSetting.Height)
+	appX := payload.OffsetX
+	appY := payload.OffsetY
+	holeRgn := win.CreateRectRgn(appX, appY, appX+payload.Width, appY+payload.Height)
 
 	// Subtract the hole region from the full region, leaving a "donut" shape.
 	// RGN_DIFF computes: fullRgn = fullRgn - holeRgn.
