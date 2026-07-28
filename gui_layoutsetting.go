@@ -56,7 +56,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 
 	nameEntry := widget.NewEntry()
 	nameEntry.SetPlaceHolder("Layout name")
-	nameEntry.SetText(draft.Name)
 	nameEntry.OnChanged = func(s string) {
 		draft.Name = s
 		setConfirmState()
@@ -71,7 +70,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 		setConfirmState()
 	})
 	displaySelect.PlaceHolder = "Select Display"
-	displaySelect.SetSelectedIndex(monitorIdx)
 
 	xOffsetText := widget.NewEntry()
 	xOffsetText.Validator = intValidator
@@ -84,7 +82,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			xOffsetText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	xOffsetText.SetText(strconv.Itoa(int(draft.OffsetX)))
 
 	yOffsetText := widget.NewEntry()
 	yOffsetText.Validator = intValidator
@@ -97,7 +94,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			yOffsetText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	yOffsetText.SetText(strconv.Itoa(int(draft.OffsetY)))
 
 	widthText := widget.NewEntry()
 	widthText.Validator = intValidator
@@ -110,7 +106,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			widthText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	widthText.SetText(strconv.Itoa(int(draft.Width)))
 
 	heightText := widget.NewEntry()
 	heightText.Validator = intValidator
@@ -123,7 +118,6 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			heightText.DoubleTapped(&fyne.PointEvent{})
 		}
 	})
-	heightText.SetText(strconv.Itoa(int(draft.Height)))
 
 	textGrid := container.NewGridWithRows(2,
 		container.NewGridWithColumns(2,
@@ -139,13 +133,12 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 	blackOverlayCheck := widget.NewCheck("Black Overlay", func(checked bool) {
 		draft.BlackOverlay = checked
 	})
-	blackOverlayCheck.SetChecked(draft.BlackOverlay)
 
 	hideTaskbarCheck := widget.NewCheck("Hide Taskbar when active", func(checked bool) {
 		draft.HideTaskbar = checked
 	})
-	hideTaskbarCheck.SetChecked(draft.HideTaskbar)
 
+	// Assigned before SetText/SetSelectedIndex: those fire OnChanged immediately.
 	setConfirmState = func() {
 		valid := layoutNameValid(draft.Name) &&
 			displaySelect.Selected != nil &&
@@ -159,6 +152,15 @@ func makeLayoutConfigWindow(settings *Settings, draft LayoutConfig, isNew bool, 
 			confirmButton.Disable()
 		}
 	}
+
+	nameEntry.SetText(draft.Name)
+	displaySelect.SetSelectedIndex(monitorIdx)
+	xOffsetText.SetText(strconv.Itoa(int(draft.OffsetX)))
+	yOffsetText.SetText(strconv.Itoa(int(draft.OffsetY)))
+	widthText.SetText(strconv.Itoa(int(draft.Width)))
+	heightText.SetText(strconv.Itoa(int(draft.Height)))
+	blackOverlayCheck.SetChecked(draft.BlackOverlay)
+	hideTaskbarCheck.SetChecked(draft.HideTaskbar)
 
 	matcherBox = container.NewVBox()
 	refreshMatchers = func() {

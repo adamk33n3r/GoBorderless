@@ -22,6 +22,23 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestMakeLayoutConfigWindowDoesNotPanicOnCreate(t *testing.T) {
+	useMonitors(t, []Monitor{{number: 1, isPrimary: true, width: 1920, height: 1080}})
+	settings := newSettings()
+	settings.Defaults = AppConfigDefaults{
+		Monitor: 1, Width: 1920, Height: 1080,
+	}
+	parent := test.NewTempWindow(t, nil)
+
+	// SetSelectedIndex fires OnChanged during construction; that must not
+	// call a still-nil setConfirmState (regression from the Create New crash).
+	dialog := makeLayoutConfigWindow(settings, newLayoutFromDefaults(settings), true, -1, parent, func(*LayoutConfig) {})
+	if dialog == nil {
+		t.Fatal("makeLayoutConfigWindow returned nil")
+	}
+	dialog.Hide()
+}
+
 func TestIntValidator(t *testing.T) {
 	valid := []string{"0", "1920", "-1080", "+5", "007"}
 	for _, s := range valid {
