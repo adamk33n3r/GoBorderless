@@ -86,7 +86,7 @@ func getWindowsForSelect(allWindows []Window) []Window {
 	return filteredWindows
 }
 
-func makeAppSettingWindow(settings *Settings, appSetting AppSetting, isNew bool, parent fyne.Window, onClose func(newSetting *AppSetting)) *dialog.CustomDialog {
+func makeAppSettingWindow(settings *Settings, appSetting AppConfig, isNew bool, parent fyne.Window, onClose func(newSetting *AppConfig)) *dialog.CustomDialog {
 	var appSettingDialog *dialog.CustomDialog
 	var windowSub rx.Subscription
 

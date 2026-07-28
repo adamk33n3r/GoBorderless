@@ -86,7 +86,7 @@ func TestMatchTypeJSONWireFormatIsStable(t *testing.T) {
 	}
 
 	for matchType, wantValue := range want {
-		encoded, err := json.Marshal(AppSetting{MatchType: matchType})
+		encoded, err := json.Marshal(AppConfig{AppMatcher: AppMatcher{MatchType: matchType}})
 		if err != nil {
 			t.Fatalf("marshalling: %v", err)
 		}
@@ -103,8 +103,8 @@ func TestMatchTypeJSONWireFormatIsStable(t *testing.T) {
 	}
 }
 
-func TestAppSettingDisplay(t *testing.T) {
-	app := AppSetting{WindowName: "Some Game", ExePath: `C:\Games\game.exe`}
+func TestAppConfigDisplay(t *testing.T) {
+	app := AppConfig{AppMatcher: AppMatcher{WindowName: "Some Game", ExePath: `C:\Games\game.exe`}}
 
 	if got, want := app.Display(), `Some Game | C:\Games\game.exe`; got != want {
 		t.Errorf("Display() = %q, want %q", got, want)
@@ -119,6 +119,12 @@ func TestNewSettingsDefaults(t *testing.T) {
 	}
 	if len(s.Apps) != 0 {
 		t.Errorf("Apps has %d entries, want 0", len(s.Apps))
+	}
+	if s.Layouts == nil {
+		t.Error("Layouts is nil; JSON would encode null instead of []")
+	}
+	if len(s.Layouts) != 0 {
+		t.Errorf("Layouts has %d entries, want 0", len(s.Layouts))
 	}
 	if s.Theme != "System" {
 		t.Errorf("Theme = %q, want %q", s.Theme, "System")
@@ -171,10 +177,12 @@ func TestLoadSettingsReadsExistingFile(t *testing.T) {
 		t.Fatalf("loaded %d apps, want 1", len(settings.Apps))
 	}
 	app := settings.Apps[0]
-	want := AppSetting{
-		WindowName: "Zed Game", ExePath: `C:\zed.exe`, MatchType: MatchEither, AutoApply: true,
+	want := AppConfig{
+		AppMatcher: AppMatcher{
+			WindowName: "Zed Game", ExePath: `C:\zed.exe`, MatchType: MatchEither, AutoApply: true,
+			PreOffsetX: 1, PreOffsetY: 2, PreWidth: 800, PreHeight: 600,
+		},
 		Monitor: 2, OffsetX: 10, OffsetY: 20, Width: 1920, Height: 1080,
-		PreOffsetX: 1, PreOffsetY: 2, PreWidth: 800, PreHeight: 600,
 	}
 	if app != want {
 		t.Errorf("app = %+v, want %+v", app, want)
@@ -184,7 +192,7 @@ func TestLoadSettingsReadsExistingFile(t *testing.T) {
 		!settings.MinimizeToTray || !settings.StartMinimized {
 		t.Errorf("top level settings not loaded: %+v", settings)
 	}
-	wantDefaults := AppSettingDefaults{Monitor: 1, MatchType: MatchBoth, OffsetX: 5, OffsetY: 6, Width: 2560, Height: 1440}
+	wantDefaults := AppConfigDefaults{Monitor: 1, MatchType: MatchBoth, OffsetX: 5, OffsetY: 6, Width: 2560, Height: 1440}
 	if settings.Defaults != wantDefaults {
 		t.Errorf("defaults = %+v, want %+v", settings.Defaults, wantDefaults)
 	}
@@ -270,23 +278,186 @@ func TestLoadSettingsToleratesMissingAndUnknownFields(t *testing.T) {
 	}
 }
 
+// Old settings files have no "layouts" key; load must yield an empty non-nil slice
+// so a later Save writes "layouts": [] instead of null.
+func TestLoadSettingsMissingLayoutsYieldsEmptySlice(t *testing.T) {
+	useTempSettings(t)
+	writeSettingsFile(t, `{"apps": [{"windowName": "Game"}], "theme": "Dark"}`)
+
+	settings, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings() error = %v", err)
+	}
+	if settings.Layouts == nil {
+		t.Fatal("Layouts is nil; JSON would encode null instead of []")
+	}
+	if len(settings.Layouts) != 0 {
+		t.Errorf("Layouts has %d entries, want 0", len(settings.Layouts))
+	}
+}
+
+func TestLoadSettingsReadsLayouts(t *testing.T) {
+	useTempSettings(t)
+	writeSettingsFile(t, `{
+		"apps": [],
+		"layouts": [
+			{
+				"name": "Ultrawide",
+				"monitor": 2,
+				"offsetX": 10,
+				"offsetY": 20,
+				"width": 3440,
+				"height": 1440,
+				"blackOverlay": true,
+				"hideTaskbar": true,
+				"matchers": [
+					{"windowName": "Zed", "exePath": "C:\\zed.exe", "matchType": 1, "autoApply": true,
+					 "preOffsetX": 1, "preOffsetY": 2, "preWidth": 800, "preHeight": 600},
+					{"windowName": "Alpha", "exePath": "C:\\a.exe", "matchType": 0}
+				]
+			}
+		]
+	}`)
+
+	settings, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings() error = %v", err)
+	}
+	if len(settings.Layouts) != 1 {
+		t.Fatalf("loaded %d layouts, want 1", len(settings.Layouts))
+	}
+	layout := settings.Layouts[0]
+	if layout.Name != "Ultrawide" || layout.Monitor != 2 || layout.OffsetX != 10 || layout.OffsetY != 20 ||
+		layout.Width != 3440 || layout.Height != 1440 || !layout.BlackOverlay || !layout.HideTaskbar {
+		t.Errorf("layout = %+v", layout)
+	}
+	// Matchers are sorted alphabetically by windowName on load.
+	if len(layout.Matchers) != 2 {
+		t.Fatalf("loaded %d matchers, want 2", len(layout.Matchers))
+	}
+	if layout.Matchers[0].WindowName != "Alpha" || layout.Matchers[1].WindowName != "Zed" {
+		t.Errorf("matcher order = %q, %q; want Alpha then Zed",
+			layout.Matchers[0].WindowName, layout.Matchers[1].WindowName)
+	}
+	wantZed := AppMatcher{
+		WindowName: "Zed", ExePath: `C:\zed.exe`, MatchType: MatchExePath, AutoApply: true,
+		PreOffsetX: 1, PreOffsetY: 2, PreWidth: 800, PreHeight: 600,
+	}
+	if layout.Matchers[1] != wantZed {
+		t.Errorf("Zed matcher = %+v, want %+v", layout.Matchers[1], wantZed)
+	}
+}
+
+// Layout list order is insertion/user order — never alpha-sorted by name.
+func TestLoadSettingsPreservesLayoutOrder(t *testing.T) {
+	useTempSettings(t)
+	writeSettingsFile(t, `{"layouts": [
+		{"name": "Zed Layout"}, {"name": "Alpha Layout"}, {"name": "Mid Layout"}
+	]}`)
+
+	settings, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings() error = %v", err)
+	}
+
+	want := []string{"Zed Layout", "Alpha Layout", "Mid Layout"}
+	for i, name := range want {
+		if settings.Layouts[i].Name != name {
+			t.Errorf("layout %d = %q, want %q", i, settings.Layouts[i].Name, name)
+		}
+	}
+}
+
+// Hand-edited empty layout names must load without crashing the app.
+func TestLoadSettingsEmptyLayoutNameDoesNotCrash(t *testing.T) {
+	useTempSettings(t)
+	writeSettingsFile(t, `{"layouts": [
+		{"name": "", "monitor": 1, "matchers": []},
+		{"name": "   ", "width": 800}
+	]}`)
+
+	settings, err := loadSettings()
+	if err != nil {
+		t.Fatalf("loadSettings() error = %v", err)
+	}
+	if len(settings.Layouts) != 2 {
+		t.Fatalf("loaded %d layouts, want 2", len(settings.Layouts))
+	}
+	if settings.Layouts[0].Name != "" || settings.Layouts[1].Name != "   " {
+		t.Errorf("names = %q, %q", settings.Layouts[0].Name, settings.Layouts[1].Name)
+	}
+	if settings.Layouts[0].Matchers == nil {
+		t.Error("empty matchers key should normalize to non-nil slice")
+	}
+}
+
+// AppConfig anonymously embeds AppMatcher so "apps" JSON stays flat — same keys
+// as before the rename, no nested "appMatcher" object.
+func TestAppConfigJSONShapeIsFlat(t *testing.T) {
+	app := AppConfig{
+		AppMatcher: AppMatcher{
+			WindowName: "Game", ExePath: `C:\game.exe`, MatchType: MatchBoth, AutoApply: true,
+			PreOffsetX: 1, PreOffsetY: 2, PreWidth: 3, PreHeight: 4,
+		},
+		BlackOverlay: true, HideTaskbar: true,
+		Monitor: 2, OffsetX: 10, OffsetY: 20, Width: 1920, Height: 1080,
+	}
+
+	encoded, err := json.Marshal(app)
+	if err != nil {
+		t.Fatalf("marshalling: %v", err)
+	}
+	raw := string(encoded)
+	for _, nested := range []string{`"AppMatcher"`, `"appMatcher"`} {
+		if strings.Contains(raw, nested) {
+			t.Errorf("apps JSON nested matcher under %s: %s", nested, raw)
+		}
+	}
+	for _, key := range []string{
+		`"windowName"`, `"exePath"`, `"matchType"`, `"autoApply"`,
+		`"preOffsetX"`, `"preOffsetY"`, `"preWidth"`, `"preHeight"`,
+		`"blackOverlay"`, `"hideTaskbar"`, `"monitor"`,
+		`"offsetX"`, `"offsetY"`, `"width"`, `"height"`,
+	} {
+		if !strings.Contains(raw, key) {
+			t.Errorf("apps JSON missing flat key %s: %s", key, raw)
+		}
+	}
+
+	var decoded AppConfig
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("unmarshalling: %v", err)
+	}
+	if decoded != app {
+		t.Errorf("round trip changed app:\n got %+v\nwant %+v", decoded, app)
+	}
+}
+
 func TestSaveAndLoadRoundTrip(t *testing.T) {
 	useTempSettings(t)
 
 	original := &Settings{
-		Apps: []AppSetting{
-			{WindowName: "Alpha", ExePath: `C:\a.exe`, MatchType: MatchBoth, AutoApply: true,
-				Monitor: 1, OffsetX: -10, OffsetY: -20, Width: 1920, Height: 1080,
+		Apps: []AppConfig{
+			{AppMatcher: AppMatcher{WindowName: "Alpha", ExePath: `C:\a.exe`, MatchType: MatchBoth, AutoApply: true,
 				PreOffsetX: 100, PreOffsetY: 200, PreWidth: 640, PreHeight: 480},
-			{WindowName: "Beta", ExePath: `C:\b.exe`, MatchType: MatchExePath, Monitor: 2},
+				Monitor: 1, OffsetX: -10, OffsetY: -20, Width: 1920, Height: 1080},
+			{AppMatcher: AppMatcher{WindowName: "Beta", ExePath: `C:\b.exe`, MatchType: MatchExePath}, Monitor: 2},
+		},
+		Layouts: []LayoutConfig{
+			{Name: "First", Monitor: 1, OffsetX: 0, OffsetY: 0, Width: 1920, Height: 1080,
+				Matchers: []AppMatcher{{WindowName: "Mid"}, {WindowName: "Zed"}, {WindowName: "Alpha"}}},
+			{Name: "Second", Monitor: 2, BlackOverlay: true, HideTaskbar: true,
+				Matchers: make([]AppMatcher, 0)},
 		},
 		Theme:            "Light",
 		StartWithWindows: true,
 		CloseToTray:      true,
 		MinimizeToTray:   false,
 		StartMinimized:   true,
-		Defaults:         AppSettingDefaults{Monitor: 2, MatchType: MatchEither, Width: 3840, Height: 2160},
+		Defaults:         AppConfigDefaults{Monitor: 2, MatchType: MatchEither, Width: 3840, Height: 2160},
 	}
+	// Matchers are sorted on load; mirror that so DeepEqual succeeds.
+	sortMatchers(original.Layouts[0].Matchers)
 
 	if err := original.Save(); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -305,7 +476,7 @@ func TestSaveWritesIndentedJSON(t *testing.T) {
 	useTempSettings(t)
 
 	settings := newSettings()
-	settings.AddApp(AppSetting{WindowName: "Game"})
+	settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: "Game"}})
 	if err := settings.Save(); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
@@ -323,7 +494,7 @@ func TestSaveOverwritesPreviousContents(t *testing.T) {
 	useTempSettings(t)
 
 	full := newSettings()
-	full.AddApp(AppSetting{WindowName: "Game"})
+	full.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: "Game"}})
 	if err := full.Save(); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
@@ -385,7 +556,7 @@ func TestAddAppKeepsListSorted(t *testing.T) {
 	settings := newSettings()
 
 	for _, name := range []string{"Mid", "Zed", "Alpha"} {
-		settings.AddApp(AppSetting{WindowName: name})
+		settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: name}})
 	}
 
 	want := []string{"Alpha", "Mid", "Zed"}
@@ -399,7 +570,7 @@ func TestAddAppKeepsListSorted(t *testing.T) {
 func TestRemoveApp(t *testing.T) {
 	settings := newSettings()
 	for _, name := range []string{"Alpha", "Mid", "Zed"} {
-		settings.AddApp(AppSetting{WindowName: name})
+		settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: name}})
 	}
 
 	settings.RemoveApp(1)
@@ -415,7 +586,7 @@ func TestRemoveApp(t *testing.T) {
 func TestRemoveAppAtEnds(t *testing.T) {
 	settings := newSettings()
 	for _, name := range []string{"Alpha", "Mid", "Zed"} {
-		settings.AddApp(AppSetting{WindowName: name})
+		settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: name}})
 	}
 
 	settings.RemoveApp(0)
@@ -430,8 +601,8 @@ func TestSortAppsIsStableAcrossSaves(t *testing.T) {
 	useTempSettings(t)
 
 	settings := newSettings()
-	settings.AddApp(AppSetting{WindowName: "Zed"})
-	settings.AddApp(AppSetting{WindowName: "Alpha"})
+	settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: "Zed"}})
+	settings.AddApp(AppConfig{AppMatcher: AppMatcher{WindowName: "Alpha"}})
 	if err := settings.Save(); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}

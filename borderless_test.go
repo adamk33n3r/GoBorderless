@@ -120,38 +120,38 @@ func TestRestoredStyleAddsFrameToPopup(t *testing.T) {
 func TestBorderlessRect(t *testing.T) {
 	tests := []struct {
 		name                  string
-		setting               AppSetting
+		setting               AppConfig
 		monitor               Monitor
 		wantX, wantY          int32
 		wantWidth, wantHeight int32
 	}{
 		{
 			name:    "primary monitor at the origin",
-			setting: AppSetting{OffsetX: 0, OffsetY: 0, Width: 1920, Height: 1080},
+			setting: AppConfig{OffsetX: 0, OffsetY: 0, Width: 1920, Height: 1080},
 			monitor: Monitor{number: 1, left: 0, top: 0},
 			wantX:   0, wantY: 0, wantWidth: 1920, wantHeight: 1080,
 		},
 		{
 			name:    "offsets are added to the monitor origin",
-			setting: AppSetting{OffsetX: 10, OffsetY: 20, Width: 800, Height: 600},
+			setting: AppConfig{OffsetX: 10, OffsetY: 20, Width: 800, Height: 600},
 			monitor: Monitor{number: 1, left: 0, top: 0},
 			wantX:   10, wantY: 20, wantWidth: 800, wantHeight: 600,
 		},
 		{
 			name:    "secondary monitor to the right",
-			setting: AppSetting{OffsetX: 5, OffsetY: 15, Width: 640, Height: 480},
+			setting: AppConfig{OffsetX: 5, OffsetY: 15, Width: 640, Height: 480},
 			monitor: Monitor{number: 2, left: 1920, top: 0},
 			wantX:   1925, wantY: 15, wantWidth: 640, wantHeight: 480,
 		},
 		{
 			name:    "monitor with a negative origin",
-			setting: AppSetting{OffsetX: 100, OffsetY: 50, Width: 1280, Height: 720},
+			setting: AppConfig{OffsetX: 100, OffsetY: 50, Width: 1280, Height: 720},
 			monitor: Monitor{number: 2, left: -1920, top: -120},
 			wantX:   -1820, wantY: -70, wantWidth: 1280, wantHeight: 720,
 		},
 		{
 			name:    "negative offsets to hide chrome off screen",
-			setting: AppSetting{OffsetX: -8, OffsetY: -31, Width: 1936, Height: 1111},
+			setting: AppConfig{OffsetX: -8, OffsetY: -31, Width: 1936, Height: 1111},
 			monitor: Monitor{number: 1, left: 0, top: 0},
 			wantX:   -8, wantY: -31, wantWidth: 1936, wantHeight: 1111,
 		},
@@ -217,7 +217,7 @@ func TestMakeBorderlessStripsFrameAndPositions(t *testing.T) {
 		t.Fatal("test window did not start out bordered")
 	}
 
-	makeBorderless(window, AppSetting{Monitor: 1, OffsetX: 10, OffsetY: 20, Width: 800, Height: 600})
+	makeBorderless(window, AppConfig{Monitor: 1, OffsetX: 10, OffsetY: 20, Width: 800, Height: 600})
 
 	if !isBorderless(window) {
 		t.Error("window is still bordered after makeBorderless")
@@ -245,7 +245,7 @@ func TestMakeBorderlessOffsetsFromChosenMonitor(t *testing.T) {
 	})
 	window := newTestWindow(t, win.WS_OVERLAPPEDWINDOW)
 
-	makeBorderless(window, AppSetting{Monitor: 2, OffsetX: 5, OffsetY: 15, Width: 640, Height: 480})
+	makeBorderless(window, AppConfig{Monitor: 2, OffsetX: 5, OffsetY: 15, Width: 640, Height: 480})
 
 	x, y, w, h := rectOf(t, window)
 	if x != 1925 || y != -105 || w != 640 || h != 480 {
@@ -258,10 +258,7 @@ func TestRestoreWindowRestoresFrameAndGeometry(t *testing.T) {
 	window := newTestWindow(t, win.WS_OVERLAPPEDWINDOW)
 
 	origX, origY, origW, origH := rectOf(t, window)
-	setting := AppSetting{
-		Monitor: 1, OffsetX: 0, OffsetY: 0, Width: 1920, Height: 1080,
-		PreOffsetX: origX, PreOffsetY: origY, PreWidth: origW, PreHeight: origH,
-	}
+	setting := AppConfig{AppMatcher: AppMatcher{PreOffsetX: origX, PreOffsetY: origY, PreWidth: origW, PreHeight: origH}, Monitor: 1, OffsetX: 0, OffsetY: 0, Width: 1920, Height: 1080}
 
 	makeBorderless(window, setting)
 	restoreWindow(window, setting)
@@ -288,7 +285,7 @@ func TestRestoreWindowIgnoresBorderedWindow(t *testing.T) {
 	beforeX, beforeY, beforeW, beforeH := rectOf(t, window)
 	beforeStyle := getWindowStyle(window.hwnd)
 
-	restoreWindow(window, AppSetting{PreOffsetX: 999, PreOffsetY: 888, PreWidth: 111, PreHeight: 222})
+	restoreWindow(window, AppConfig{AppMatcher: AppMatcher{PreOffsetX: 999, PreOffsetY: 888, PreWidth: 111, PreHeight: 222}})
 
 	x, y, w, h := rectOf(t, window)
 	if x != beforeX || y != beforeY || w != beforeW || h != beforeH {
@@ -304,7 +301,7 @@ func TestRestoreWindowIgnoresBorderedWindow(t *testing.T) {
 func TestMakeBorderlessIsIdempotent(t *testing.T) {
 	useMonitors(t, []Monitor{{number: 1, isPrimary: true, width: 1920, height: 1080}})
 	window := newTestWindow(t, win.WS_OVERLAPPEDWINDOW)
-	setting := AppSetting{Monitor: 1, OffsetX: 30, OffsetY: 40, Width: 1024, Height: 768}
+	setting := AppConfig{Monitor: 1, OffsetX: 30, OffsetY: 40, Width: 1024, Height: 768}
 
 	makeBorderless(window, setting)
 	firstStyle := getWindowStyle(window.hwnd)

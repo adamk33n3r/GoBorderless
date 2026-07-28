@@ -53,7 +53,7 @@ var settingsList *widget.List
 var currentWindows = make([]Window, 0) // Temporary list to store window titles
 var currentWindowsMutex sync.Mutex
 
-func launchAppSettingDialog(parent fyne.Window, new bool, settings *Settings, appSetting AppSetting, onClose func(newSetting *AppSetting)) {
+func launchAppSettingDialog(parent fyne.Window, new bool, settings *Settings, appSetting AppConfig, onClose func(newSetting *AppConfig)) {
 	dialog := makeAppSettingWindow(settings, appSetting, new, parent, onClose)
 	dialog.Show()
 }
@@ -161,8 +161,8 @@ func buildApp(settings *Settings) fyne.App {
 	})
 
 	newAppConfig := widget.NewButtonWithIcon("Create New App Config", theme.ContentAddIcon(), func() {
-		newAppSetting := AppSetting{}
-		launchAppSettingDialog(mainWindow, true, settings, newAppSetting, func(newSetting *AppSetting) {
+		newAppSetting := AppConfig{}
+		launchAppSettingDialog(mainWindow, true, settings, newAppSetting, func(newSetting *AppConfig) {
 			if newSetting != nil {
 				fmt.Println(newSetting)
 				settings.AddApp(*newSetting)
@@ -233,7 +233,7 @@ func buildApp(settings *Settings) fyne.App {
 		row.EditBtn.OnTapped = func() {
 			// Need to fetch again from array to "reset" the values since this update func is only called on occasion
 			appSetting := settings.Apps[lii]
-			launchAppSettingDialog(mainWindow, false, settings, appSetting, func(newSetting *AppSetting) {
+			launchAppSettingDialog(mainWindow, false, settings, appSetting, func(newSetting *AppConfig) {
 				if newSetting != nil {
 					fmt.Println(newSetting)
 					settings.Apps[lii] = *newSetting

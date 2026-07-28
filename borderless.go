@@ -42,11 +42,11 @@ func restoredStyle(style int32) int32 {
  * Where a config wants its window: offsets are relative to the chosen monitor's
  * top left corner, not to the desktop origin.
  */
-func borderlessRect(appSetting AppSetting, monitor Monitor) (x, y, width, height int32) {
+func borderlessRect(appSetting AppConfig, monitor Monitor) (x, y, width, height int32) {
 	return appSetting.OffsetX + monitor.left, appSetting.OffsetY + monitor.top, appSetting.Width, appSetting.Height
 }
 
-func makeBorderless(window Window, appSetting AppSetting) {
+func makeBorderless(window Window, appSetting AppConfig) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
 	// Monitor is 1-based; 0 means unset and out-of-range would panic on index.
@@ -65,7 +65,7 @@ func makeBorderless(window Window, appSetting AppSetting) {
 /**
  * Only restores the window if it's borderless
  */
-func restoreWindow(window Window, appSetting AppSetting) {
+func restoreWindow(window Window, appSetting AppConfig) {
 	if !isBorderless(window) {
 		return
 	}

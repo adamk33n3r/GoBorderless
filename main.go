@@ -128,7 +128,7 @@ func enumWindowsCallback(hwnd uintptr, lparam uintptr) uintptr {
 	return 1 // continue enumeration
 }
 
-func matchWindow(win Window, appSetting AppSetting) bool {
+func matchWindow(win Window, appSetting AppConfig) bool {
 	switch appSetting.MatchType {
 	case MatchWindowTitle:
 		return win.title == appSetting.WindowName

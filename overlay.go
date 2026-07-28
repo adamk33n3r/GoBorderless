@@ -104,7 +104,7 @@ func overlayWndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 // Parameters:
 //   - appHwnd:     Handle to the target application window being made borderless.
 //   - appSetting:  The app's configuration, used to determine monitor, size, and position.
-func createOverlay(appHwnd win.HWND, appSetting AppSetting) {
+func createOverlay(appHwnd win.HWND, appSetting AppConfig) {
 	// Ensure the Win32 window class is registered before creating any overlay windows.
 	registerOverlayClass()
 
@@ -181,13 +181,13 @@ func createOverlay(appHwnd win.HWND, appSetting AppSetting) {
 //
 // The overlay window is positioned at the monitor's top-left corner, so all
 // coordinates here are monitor-local (i.e. relative to the monitor origin).
-// AppSetting.OffsetX/Y are also monitor-relative (set by makeBorderless).
+// AppConfig.OffsetX/Y are also monitor-relative (set by makeBorderless).
 //
 // Parameters:
 //   - overlayHwnd: Handle to the overlay window whose region will be updated.
 //   - appSetting:  App configuration providing the hole's position (OffsetX/Y) and size (Width/Height).
 //   - monitor:     The monitor the overlay covers, used for the outer boundary dimensions.
-func applyOverlayRegion(overlayHwnd win.HWND, appSetting AppSetting, monitor Monitor) {
+func applyOverlayRegion(overlayHwnd win.HWND, appSetting AppConfig, monitor Monitor) {
 	// Start with a region that covers the entire monitor surface.
 	fullRgn := win.CreateRectRgn(0, 0, monitor.width, monitor.height)
 
