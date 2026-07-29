@@ -48,3 +48,13 @@ func copyMatcherPre(dst *AppMatcher, src AppMatcher) {
 	dst.PreWidth = src.PreWidth
 	dst.PreHeight = src.PreHeight
 }
+
+// findMatcherIndex locates a matcher in persisted layout order by identity.
+func findMatcherIndex(matchers []AppMatcher, matcher AppMatcher) int {
+	for i, m := range matchers {
+		if m.WindowName == matcher.WindowName && m.ExePath == matcher.ExePath {
+			return i
+		}
+	}
+	return -1
+}

@@ -184,8 +184,6 @@ func scanWindows(settings *Settings) {
 		default:
 		}
 
-		shouldHideTaskbar := false
-
 		for appSettingIdx, appSetting := range settings.Apps {
 			if !appSetting.AutoApply {
 				continue
@@ -202,24 +200,41 @@ func scanWindows(settings *Settings) {
 						settings.Save()
 					}
 					makeBorderless(win, applyPayloadFromApp(appSetting))
-					// Hide taskbar as long as this app's window exists
-					if appSetting.HideTaskbar {
-						shouldHideTaskbar = true
-					}
 					break
 				}
 			}
 		}
 
-		// Also check non-auto-apply apps that are already borderless and running
-		for _, appSetting := range settings.Apps {
-			if !appSetting.HideTaskbar {
+		for _, win := range windowData {
+			winner, ok := resolveWinner(settings, win)
+			if !ok || winner.appIdx >= 0 || !winner.matcher.AutoApply {
 				continue
 			}
-			for _, win := range windowData {
-				if matchWindow(win, appSetting.AppMatcher) && isBorderless(win) {
-					shouldHideTaskbar = true
-				}
+			layoutIdx := winner.layoutIdx
+			matcherIdx := findMatcherIndex(settings.Layouts[layoutIdx].Matchers, winner.matcher)
+			if matcherIdx < 0 {
+				continue
+			}
+			matcher := settings.Layouts[layoutIdx].Matchers[matcherIdx]
+			layout := settings.Layouts[layoutIdx]
+			if !isBorderless(win) {
+				originalRect := getWindowRect(win.hwnd)
+				matcher.PreWidth = int32(originalRect.Right - originalRect.Left)
+				matcher.PreHeight = int32(originalRect.Bottom - originalRect.Top)
+				matcher.PreOffsetX = int32(originalRect.Left)
+				matcher.PreOffsetY = int32(originalRect.Top)
+				settings.Layouts[layoutIdx].Matchers[matcherIdx] = matcher
+				settings.Save()
+			}
+			makeBorderless(win, applyPayloadFromLayout(layout, matcher))
+		}
+
+		shouldHideTaskbar := false
+		for _, win := range windowData {
+			winner, ok := resolveWinner(settings, win)
+			if ok && winner.payload.HideTaskbar && isBorderless(win) {
+				shouldHideTaskbar = true
+				break
 			}
 		}
 

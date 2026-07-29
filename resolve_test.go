@@ -117,3 +117,88 @@ func TestResolveApplyNoMatch(t *testing.T) {
 		t.Error("resolveApply() matched an unrelated window")
 	}
 }
+
+func TestResolveWinnerAppBlocksLayoutAutoApply(t *testing.T) {
+	const (
+		title = "Some Game"
+		exe   = `C:\Games\game.exe`
+	)
+	win := Window{title: title, exePath: exe}
+	settings := &Settings{
+		Apps: []AppConfig{{
+			AppMatcher: AppMatcher{WindowName: title, ExePath: exe, MatchType: MatchBoth},
+			Monitor:    1,
+		}},
+		Layouts: []LayoutConfig{{
+			Name:    "Layout",
+			Monitor: 2,
+			Matchers: []AppMatcher{{
+				WindowName: title,
+				ExePath:    exe,
+				MatchType:  MatchBoth,
+				AutoApply:  true,
+			}},
+		}},
+	}
+
+	winner, ok := resolveWinner(settings, win)
+	if !ok {
+		t.Fatal("resolveWinner() returned no match")
+	}
+	if winner.appIdx < 0 {
+		t.Errorf("resolveWinner() appIdx = %d, want app config to win", winner.appIdx)
+	}
+	if winner.layoutIdx >= 0 {
+		t.Errorf("resolveWinner() layoutIdx = %d, want no layout winner", winner.layoutIdx)
+	}
+}
+
+func TestResolveWinnerReturnsLayoutMatcher(t *testing.T) {
+	const (
+		title = "Some Game"
+		exe   = `C:\Games\game.exe`
+	)
+	win := Window{title: title, exePath: exe}
+	matcher := AppMatcher{
+		WindowName: title,
+		ExePath:    exe,
+		MatchType:  MatchBoth,
+		AutoApply:  true,
+		PreOffsetX: 5,
+	}
+	settings := &Settings{
+		Layouts: []LayoutConfig{{
+			Name:         "Ultrawide",
+			Monitor:      2,
+			OffsetX:      10,
+			OffsetY:      20,
+			Width:        3440,
+			Height:       1440,
+			BlackOverlay: true,
+			HideTaskbar:  true,
+			Matchers:     []AppMatcher{matcher},
+		}},
+	}
+
+	winner, ok := resolveWinner(settings, win)
+	if !ok {
+		t.Fatal("resolveWinner() returned no match")
+	}
+	if winner.appIdx >= 0 {
+		t.Fatalf("resolveWinner() appIdx = %d, want layout winner", winner.appIdx)
+	}
+	if winner.layoutIdx != 0 {
+		t.Errorf("layoutIdx = %d, want 0", winner.layoutIdx)
+	}
+	if winner.matcher != matcher {
+		t.Errorf("matcher = %+v, want %+v", winner.matcher, matcher)
+	}
+	want := ApplyPayload{
+		Monitor: 2, OffsetX: 10, OffsetY: 20, Width: 3440, Height: 1440,
+		BlackOverlay: true, HideTaskbar: true,
+		PreOffsetX: 5,
+	}
+	if winner.payload != want {
+		t.Errorf("payload = %+v, want %+v", winner.payload, want)
+	}
+}

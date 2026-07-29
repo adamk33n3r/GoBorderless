@@ -49,23 +49,46 @@ func applyPayloadFromLayout(layout LayoutConfig, matcher AppMatcher) ApplyPayloa
 	}
 }
 
-// resolveApply returns the winning apply payload for a window.
+// applyWinner is the winning App Config or Layout matcher for one window.
+// Exactly one of appIdx or layoutIdx is >= 0 when ok is true.
+type applyWinner struct {
+	payload   ApplyPayload
+	appIdx    int // -1 when a layout wins
+	layoutIdx int // -1 when an app wins
+	matcher   AppMatcher
+}
+
+// resolveWinner returns the winning apply source for a window.
 // App Configs beat any Layout Config; among layouts, list order; within a
 // layout, first matcher after alphabetical sort by window title.
-func resolveApply(settings *Settings, win Window) (ApplyPayload, bool) {
-	for _, app := range settings.Apps {
+func resolveWinner(settings *Settings, win Window) (applyWinner, bool) {
+	for i, app := range settings.Apps {
 		if matchWindow(win, app.AppMatcher) {
-			return applyPayloadFromApp(app), true
+			return applyWinner{payload: applyPayloadFromApp(app), appIdx: i, layoutIdx: -1}, true
 		}
 	}
-	for _, layout := range settings.Layouts {
+	for layoutIdx, layout := range settings.Layouts {
 		matchers := append([]AppMatcher(nil), layout.Matchers...)
 		sortMatchers(matchers)
 		for _, matcher := range matchers {
 			if matchWindow(win, matcher) {
-				return applyPayloadFromLayout(layout, matcher), true
+				return applyWinner{
+					payload:   applyPayloadFromLayout(layout, matcher),
+					appIdx:    -1,
+					layoutIdx: layoutIdx,
+					matcher:   matcher,
+				}, true
 			}
 		}
 	}
-	return ApplyPayload{}, false
+	return applyWinner{}, false
+}
+
+// resolveApply returns the winning apply payload for a window.
+func resolveApply(settings *Settings, win Window) (ApplyPayload, bool) {
+	winner, ok := resolveWinner(settings, win)
+	if !ok {
+		return ApplyPayload{}, false
+	}
+	return winner.payload, true
 }
