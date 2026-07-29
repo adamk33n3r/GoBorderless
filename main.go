@@ -206,13 +206,8 @@ func scanWindows(settings *Settings) {
 		}
 
 		for _, win := range windowData {
-			winner, ok := resolveWinner(settings, win)
-			if !ok || winner.appIdx >= 0 || !winner.matcher.AutoApply {
-				continue
-			}
-			layoutIdx := winner.layoutIdx
-			matcherIdx := findMatcherIndex(settings.Layouts[layoutIdx].Matchers, winner.matcher)
-			if matcherIdx < 0 {
+			layoutIdx, matcherIdx, ok := resolveLayoutAutoApply(settings, win)
+			if !ok {
 				continue
 			}
 			matcher := settings.Layouts[layoutIdx].Matchers[matcherIdx]

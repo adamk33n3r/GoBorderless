@@ -81,15 +81,17 @@ func TestCapturePreGeometry(t *testing.T) {
 	}
 }
 
-func TestFindMatcherIndex(t *testing.T) {
+func TestSortedMatcherIndices(t *testing.T) {
 	matchers := []AppMatcher{
-		{WindowName: "Alpha", ExePath: `C:\a.exe`},
-		{WindowName: "Bravo", ExePath: `C:\b.exe`},
+		{WindowName: "Zulu"},
+		{WindowName: "Alpha"},
+		{WindowName: "Bravo"},
 	}
-	if got := findMatcherIndex(matchers, AppMatcher{WindowName: "Bravo", ExePath: `C:\b.exe`}); got != 1 {
-		t.Errorf("findMatcherIndex() = %d, want 1", got)
-	}
-	if got := findMatcherIndex(matchers, AppMatcher{WindowName: "Missing", ExePath: `C:\x.exe`}); got != -1 {
-		t.Errorf("findMatcherIndex() = %d, want -1", got)
+	got := sortedMatcherIndices(matchers)
+	want := []int{1, 2, 0}
+	for i, idx := range got {
+		if idx != want[i] {
+			t.Fatalf("sortedMatcherIndices() = %v, want %v", got, want)
+		}
 	}
 }

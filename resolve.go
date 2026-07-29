@@ -92,3 +92,23 @@ func resolveApply(settings *Settings, win Window) (ApplyPayload, bool) {
 	}
 	return winner.payload, true
 }
+
+// resolveLayoutAutoApply returns the layout and matcher index whose Auto Apply
+// should run for win. Skips matchers without Auto Apply (including manual entries
+// in higher-priority layouts). Auto-applying App Configs block layout apply.
+func resolveLayoutAutoApply(settings *Settings, win Window) (layoutIdx, matcherIdx int, ok bool) {
+	for _, app := range settings.Apps {
+		if app.AutoApply && matchWindow(win, app.AppMatcher) {
+			return -1, -1, false
+		}
+	}
+	for layoutIdx, layout := range settings.Layouts {
+		for _, matcherIdx := range sortedMatcherIndices(layout.Matchers) {
+			matcher := layout.Matchers[matcherIdx]
+			if matcher.AutoApply && matchWindow(win, matcher) {
+				return layoutIdx, matcherIdx, true
+			}
+		}
+	}
+	return -1, -1, false
+}

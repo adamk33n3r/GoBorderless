@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -49,12 +50,14 @@ func copyMatcherPre(dst *AppMatcher, src AppMatcher) {
 	dst.PreHeight = src.PreHeight
 }
 
-// findMatcherIndex locates a matcher in persisted layout order by identity.
-func findMatcherIndex(matchers []AppMatcher, matcher AppMatcher) int {
-	for i, m := range matchers {
-		if m.WindowName == matcher.WindowName && m.ExePath == matcher.ExePath {
-			return i
-		}
+// sortedMatcherIndices returns matcher indices in title-sort order.
+func sortedMatcherIndices(matchers []AppMatcher) []int {
+	indices := make([]int, len(matchers))
+	for i := range indices {
+		indices[i] = i
 	}
-	return -1
+	slices.SortFunc(indices, func(a, b int) int {
+		return strings.Compare(matchers[a].WindowName, matchers[b].WindowName)
+	})
+	return indices
 }

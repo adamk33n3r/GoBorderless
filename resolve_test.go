@@ -118,41 +118,6 @@ func TestResolveApplyNoMatch(t *testing.T) {
 	}
 }
 
-func TestResolveWinnerAppBlocksLayoutAutoApply(t *testing.T) {
-	const (
-		title = "Some Game"
-		exe   = `C:\Games\game.exe`
-	)
-	win := Window{title: title, exePath: exe}
-	settings := &Settings{
-		Apps: []AppConfig{{
-			AppMatcher: AppMatcher{WindowName: title, ExePath: exe, MatchType: MatchBoth},
-			Monitor:    1,
-		}},
-		Layouts: []LayoutConfig{{
-			Name:    "Layout",
-			Monitor: 2,
-			Matchers: []AppMatcher{{
-				WindowName: title,
-				ExePath:    exe,
-				MatchType:  MatchBoth,
-				AutoApply:  true,
-			}},
-		}},
-	}
-
-	winner, ok := resolveWinner(settings, win)
-	if !ok {
-		t.Fatal("resolveWinner() returned no match")
-	}
-	if winner.appIdx < 0 {
-		t.Errorf("resolveWinner() appIdx = %d, want app config to win", winner.appIdx)
-	}
-	if winner.layoutIdx >= 0 {
-		t.Errorf("resolveWinner() layoutIdx = %d, want no layout winner", winner.layoutIdx)
-	}
-}
-
 func TestResolveWinnerReturnsLayoutMatcher(t *testing.T) {
 	const (
 		title = "Some Game"
@@ -200,5 +165,94 @@ func TestResolveWinnerReturnsLayoutMatcher(t *testing.T) {
 	}
 	if winner.payload != want {
 		t.Errorf("payload = %+v, want %+v", winner.payload, want)
+	}
+}
+
+func TestResolveLayoutAutoApply(t *testing.T) {
+	const (
+		gameTitle = "Some Game"
+		gameExe   = `C:\Games\game.exe`
+		calcTitle = "Calculator"
+		calcExe   = `C:\Windows\System32\calc.exe`
+	)
+	gameWin := Window{title: gameTitle, exePath: gameExe}
+	calcWin := Window{title: calcTitle, exePath: calcExe}
+	calcMatcher := AppMatcher{WindowName: calcTitle, ExePath: calcExe, MatchType: MatchBoth}
+
+	tests := []struct {
+		name           string
+		settings       *Settings
+		win            Window
+		wantOK         bool
+		wantLayoutIdx  int
+		wantMatcherIdx int
+	}{
+		{
+			name: "skips manual layout higher in list",
+			settings: &Settings{
+				Layouts: []LayoutConfig{
+					{Name: "Manual", Monitor: 1, Matchers: []AppMatcher{calcMatcher}},
+					{Name: "Auto", Monitor: 2, Matchers: []AppMatcher{
+						{WindowName: calcTitle, ExePath: calcExe, MatchType: MatchBoth, AutoApply: true},
+					}},
+				},
+			},
+			win: calcWin, wantOK: true, wantLayoutIdx: 1, wantMatcherIdx: 0,
+		},
+		{
+			name: "skips manual matcher in same layout",
+			settings: &Settings{
+				Layouts: []LayoutConfig{{
+					Name: "Layout", Monitor: 1,
+					Matchers: []AppMatcher{
+						{WindowName: "Alpha", ExePath: gameExe, MatchType: MatchExePath},
+						{WindowName: "Bravo", ExePath: gameExe, MatchType: MatchExePath, AutoApply: true},
+					},
+				}},
+			},
+			win: gameWin, wantOK: true, wantLayoutIdx: 0, wantMatcherIdx: 1,
+		},
+		{
+			name: "blocked by auto-applying app config",
+			settings: &Settings{
+				Apps: []AppConfig{{
+					AppMatcher: AppMatcher{WindowName: gameTitle, ExePath: gameExe, MatchType: MatchBoth, AutoApply: true},
+					Monitor:    1,
+				}},
+				Layouts: []LayoutConfig{{
+					Name: "Layout", Monitor: 2,
+					Matchers: []AppMatcher{{WindowName: gameTitle, ExePath: gameExe, MatchType: MatchBoth, AutoApply: true}},
+				}},
+			},
+			win: gameWin, wantOK: false,
+		},
+		{
+			name: "first auto layout in list order wins",
+			settings: &Settings{
+				Layouts: []LayoutConfig{
+					{Name: "First", Monitor: 1, Matchers: []AppMatcher{
+						{WindowName: gameTitle, ExePath: gameExe, MatchType: MatchBoth, AutoApply: true},
+					}},
+					{Name: "Second", Monitor: 2, Matchers: []AppMatcher{
+						{WindowName: gameTitle, ExePath: gameExe, MatchType: MatchBoth, AutoApply: true},
+					}},
+				},
+			},
+			win: gameWin, wantOK: true, wantLayoutIdx: 0, wantMatcherIdx: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			layoutIdx, matcherIdx, ok := resolveLayoutAutoApply(tt.settings, tt.win)
+			if ok != tt.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tt.wantOK)
+			}
+			if !tt.wantOK {
+				return
+			}
+			if layoutIdx != tt.wantLayoutIdx || matcherIdx != tt.wantMatcherIdx {
+				t.Errorf("got (%d, %d), want (%d, %d)", layoutIdx, matcherIdx, tt.wantLayoutIdx, tt.wantMatcherIdx)
+			}
+		})
 	}
 }
