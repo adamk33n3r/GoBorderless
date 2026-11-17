@@ -38,6 +38,41 @@ func restoredStyle(style int32) int32 {
 	return style | win.WS_OVERLAPPEDWINDOW
 }
 
+// Remove the extended edge styles (sunken/raised edges) some games add
+func borderlessExStyle(exStyle int32) int32 {
+	return exStyle &^ exStyleBorderBits
+}
+
+var (
+	exStyleMu        sync.Mutex
+	originalExStyles = map[win.HWND]int32{}
+)
+
+func clearBorderExStyle(hwnd win.HWND) {
+	exStyle := getWindowExStyle(hwnd)
+	if exStyle&exStyleBorderBits == 0 {
+		return // nothing to clear, and don't overwrite a saved original
+	}
+	exStyleMu.Lock()
+	if _, ok := originalExStyles[hwnd]; !ok {
+		originalExStyles[hwnd] = exStyle
+	}
+	exStyleMu.Unlock()
+	setWindowExStyle(hwnd, borderlessExStyle(exStyle))
+}
+
+func restoreBorderExStyle(hwnd win.HWND) {
+	exStyleMu.Lock()
+	orig, ok := originalExStyles[hwnd]
+	delete(originalExStyles, hwnd)
+	exStyleMu.Unlock()
+	if !ok {
+		return
+	}
+	// Put back only the edge bits, keeping any other changes the app made
+	setWindowExStyle(hwnd, getWindowExStyle(hwnd)|(orig&exStyleBorderBits))
+}
+
 /**
  * Where a config wants its window: offsets are relative to the chosen monitor's
  * top left corner, not to the desktop origin.
@@ -48,6 +83,7 @@ func borderlessRect(payload ApplyPayload, monitor Monitor) (x, y, width, height 
 
 func makeBorderless(window Window, payload ApplyPayload) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
+	clearBorderExStyle(window.hwnd)
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
 	// Monitor is 1-based; 0 means unset and out-of-range would panic on index.
 	idx := payload.Monitor - 1
@@ -70,6 +106,7 @@ func restoreWindow(window Window, payload ApplyPayload) {
 		return
 	}
 	fmt.Println("Restoring window:", window.title, window.exePath)
+	restoreBorderExStyle(window.hwnd)
 	setWindowStyle(window.hwnd, restoredStyle(getWindowStyle(window.hwnd)))
 	setWindowPos(window.hwnd, payload.PreOffsetX, payload.PreOffsetY, payload.PreWidth, payload.PreHeight)
 
