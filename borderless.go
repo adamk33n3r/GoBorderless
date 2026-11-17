@@ -83,6 +83,7 @@ func borderlessRect(payload ApplyPayload, monitor Monitor) (x, y, width, height 
 
 func makeBorderless(window Window, payload ApplyPayload) {
 	// fmt.Println("Making window borderless:", window.title, window.exePath)
+	clearBorderExStyle(window.hwnd)
 	setWindowStyle(window.hwnd, borderlessStyle(getWindowStyle(window.hwnd)))
 	// Monitor is 1-based; 0 means unset and out-of-range would panic on index.
 	idx := payload.Monitor - 1
@@ -105,6 +106,7 @@ func restoreWindow(window Window, payload ApplyPayload) {
 		return
 	}
 	fmt.Println("Restoring window:", window.title, window.exePath)
+	restoreBorderExStyle(window.hwnd)
 	setWindowStyle(window.hwnd, restoredStyle(getWindowStyle(window.hwnd)))
 	setWindowPos(window.hwnd, payload.PreOffsetX, payload.PreOffsetY, payload.PreWidth, payload.PreHeight)
 
